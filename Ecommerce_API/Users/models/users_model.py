@@ -1,6 +1,5 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser, BaseUserManager, PermissionsMixin
-from ...Cart.models import Cart
 
 class CustomUserManager(BaseUserManager):
     def create_user(self, email, password, **extra_fields):
@@ -29,7 +28,6 @@ class CustomUser(AbstractUser, PermissionsMixin):
     first_name = models.CharField(max_length=255)
     last_name = models.CharField(max_length=255)
     password = models.CharField(max_length=255)
-    cart_id = models.OneToOneField(Cart, on_delete=models.CASCADE, null=False)
     
     def __init__(self):
         super().__init__()
