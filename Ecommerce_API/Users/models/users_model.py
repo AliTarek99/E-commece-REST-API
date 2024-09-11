@@ -34,7 +34,7 @@ class CustomUser(AbstractUser, PermissionsMixin):
         del self.username
         del self.groups
 
-    USERNAME_FIELD = 'id'
+    USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['email', 'first_name', 'last_name', 'password']
 
 
