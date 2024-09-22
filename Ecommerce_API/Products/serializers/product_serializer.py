@@ -1,15 +1,15 @@
 from ..models import Product
 from rest_framework import serializers
-from ...Users.serializers import UserSerializer
+from users.models import CustomUser as User
 
 class ProductSerializer(serializers.Serializer):
-    id = serializers.IntegerField(read_only=True)
+    id = serializers.IntegerField(required=False)
     name = serializers.CharField(max_length=255)
     description = serializers.CharField()
     price = serializers.DecimalField(max_digits=10, decimal_places=2)
     quantity = serializers.IntegerField()
-    created_at = serializers.DateTimeField(read_only=True)
-    seller = UserSerializer(read_only=True)
+    created_at = serializers.DateTimeField(required=False) 
+    seller = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
 
     def __validate_not_negative(self, value, field_name):
         if value < 0:
@@ -22,7 +22,7 @@ class ProductSerializer(serializers.Serializer):
         return attrs
 
     def create(self, validated_data):
-        self.seller = self.context.get('request').user
+        validated_data['seller_id'] = self.context.get('request').user
         return Product.objects.create(**validated_data)
     
     def delete(self, instance):

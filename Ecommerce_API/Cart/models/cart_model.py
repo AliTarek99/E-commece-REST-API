@@ -2,8 +2,8 @@ from django.db import models
 
 
 class Cart(models.Model):
-    user_id = models.ForeignKey('Users.users_model', on_delete=models.CASCADE)
-    product_id = models.ForeignKey('Products.product_model', on_delete=models.CASCADE)
+    user_id = models.ForeignKey('users.CustomUser', on_delete=models.CASCADE)
+    product = models.ForeignKey('products.Product', on_delete=models.CASCADE)
     quantity = models.IntegerField()
 
     class Meta:

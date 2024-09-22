@@ -2,16 +2,16 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from ..serializers import UserSerializer
-from django.contrib.auth import authenticate
+from ..models import CustomUser as User
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 class UserloginAPI(APIView):
     def post(self, request):
-        user = authenticate(username=request.data.get('email'), password=request.data.get('password'))
+        user = User.objects.filter(email=request.data['email']).first()
 
-        if user is not None:
+        if user is not None and user.check_password(request.data['password']):
             refresh = RefreshToken.for_user(user)
             return Response({'refresh': str(refresh), 'access': str(refresh.access_token)}, status=status.HTTP_200_OK)
         return Response({'error': 'Invalid credentials'}, status=status.HTTP_400_BAD_REQUEST)

@@ -3,8 +3,8 @@ from rest_framework import serializers
 
 
 class UserSerializer(serializers.Serializer):
-    id = serializers.IntegerField(read_only=True)
-    email = serializers.EmailField(read_only=True)
+    id = serializers.IntegerField(required=False)
+    email = serializers.EmailField()
     first_name = serializers.CharField()
     last_name = serializers.CharField()
     password = serializers.CharField(write_only=True)

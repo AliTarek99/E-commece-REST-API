@@ -1,5 +1,5 @@
 from ..models import Orders, OrdersItems
-from ...Cart.models import Cart
+from cart.models import Cart
 
 class OrdersQueryset:
     @classmethod
