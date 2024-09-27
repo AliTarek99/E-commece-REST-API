@@ -5,7 +5,7 @@ from rest_framework import status
 from ..models import Orders
 from ..serializers import OrdersSerializer, OrderItemsSerializer
 from rest_framework.permissions import IsAuthenticated
-from ..queryset import orders_queryset
+from ..services import OrdersServices
 
 class OrdersAPIs(APIView):
     permission_classes = [IsAuthenticated]
@@ -29,5 +29,5 @@ class OrdersAPIs(APIView):
         return Response(serializer.data)
 
     def post(self, request):
-        orders_queryset.create_order(request.user)
+        OrdersServices.create_order(request.user)
         return Response(status=status.HTTP_201_CREATED)

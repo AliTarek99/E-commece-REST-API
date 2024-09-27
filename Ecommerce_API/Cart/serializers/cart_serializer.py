@@ -1,20 +1,19 @@
 from rest_framework import serializers
 from users.models import CustomUser as User
-from products.serializers import ProductSerializer
 from products.models import Product
 from ..models import Cart
 
 
 class CartSerializer(serializers.Serializer):
-    product = ProductSerializer()
+    product = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all().only('id', 'name', 'price', 'image', 'seller'))
     quantity = serializers.IntegerField()
-    user_id = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
+    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all().only('id'), required=False)
 
 
     def validate(self, attrs):
-        if self.initial_data['user_id'] != self.context.get('request').user.id:
+        if self.initial_data['user'] != self.context.get('user').id:
             raise serializers.ValidationError('UnAuthorized access')
-        product = Product.objects.filter(id=attrs['product']['id']).only('quantity').first()
+        product = Product.objects.filter(id=attrs['product'].id).only('quantity').first()
         if product.quantity < attrs['quantity']:
             raise serializers.ValidationError('Product quantity is not enough')
         return attrs
@@ -25,7 +24,7 @@ class CartSerializer(serializers.Serializer):
         return value
     
     def create(self, validated_data):
-        validated_data['user_id'] = self.context.get('request').user
+        validated_data['user'] = self.context.get('user')
         return Cart.objects.create(**validated_data)
     
     def update(self, instance, validated_data):

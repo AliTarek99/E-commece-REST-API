@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 
+import os
 from pathlib import Path
 from decouple import config
 from datetime import timedelta
@@ -80,10 +81,10 @@ WSGI_APPLICATION = 'Ecommerce_API.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME'), 
-        'USER': config('DB_USER', default='postgres'),
-        'PASSWORD': config('DB_PASSWORD', default='postgres'),
-        'HOST': config('DB_HOST', default='localhost'),
+        'NAME': config('DB_NAME', default='ecommerce'), 
+        'USER': config('DB_USER', default='app'),
+        'PASSWORD': config('DB_PASSWORD', default='postgresql'),
+        'HOST': config('DB_HOST', default='db'),
         'PORT': config('DB_PORT', default='5432'),
     }
 }
@@ -123,7 +124,9 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
-STATIC_URL = 'static/'
+MEDIA_URL = '/media/'
+
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
@@ -157,3 +160,9 @@ REST_FRAMEWORK = {
 }
 
 AUTH_USER_MODEL = 'users.CustomUser'
+
+PAYMOB_API_KEY = config('PAYMOB_API_KEY')
+PAYMOB_INTEGRATION_ID = config('PAYMOB_INTEGRATION_ID')
+PAYMOB_HMAC_SECRET = config('PAYMOB_HMAC_SECRET')
+PAYMOB_IFRAME_ID = config('PAYMOB_IFRAME_ID')
+PAYMOB_CARD_INTEGRATION_ID = config('PAYMOB_CARD_INTEGRATION_ID')

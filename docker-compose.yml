@@ -1,0 +1,23 @@
+
+services:
+  db:
+    image: postgres
+    environment:
+      POSTGRES_DB: ecommerce
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: postgresql
+    volumes:
+      - ./data/db:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+
+  web:
+    build: .
+    volumes:
+      - ../E-commerce API:/code
+    ports:
+      - "8001:8001"
+    depends_on:
+      - db
+    env_file:
+      - ./Ecommerce_API/.env
