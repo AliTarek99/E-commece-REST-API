@@ -17,7 +17,6 @@ class CartAPIs(APIView):
         return Response(serilaizer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
-        print('s'*500)
         if not request.data['product']:
             return Response({'error': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
         

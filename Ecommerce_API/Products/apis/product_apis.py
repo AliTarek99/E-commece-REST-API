@@ -11,7 +11,7 @@ from shared.services import FileManagment
 
 
 class ProductList(ListAPIView):
-    queryset = Product.objects.filter(visible_in_search=True)
+    queryset = Product.objects.filter()
     serializer_class = OutputProductSerializer
     filter_backends = [SearchFilter, OrderingFilter]
     search_fields = ['name']

@@ -34,18 +34,3 @@ class PaymobServices:
         if 'details' in intention_data:
             raise Exception(intention_data['details'])
         return {'payment_url': f' https://accept.paymob.com/unifiedcheckout/?publicKey={config('PAYMOB_PUBLIC_KEY')}&clientSecret={intention_data['client_secret']}'}
-        
-    def get_merchant_data(auth_token, merchant_id):
-        url = f"{config('PAYMOB_API_BASE_URL')}/marketplace/merchants/{merchant_id}"
-        headers = {'Authorization': f"Bearer {auth_token}"}
-        response = requests.get(url, headers=headers)
-        print(response, config('PAYMOB_API_BASE_URL'))
-        
-        if response.status_code == 200:
-            return response.json()  # Merchant exists, return data
-        else:
-            return None
-
-
-
-
