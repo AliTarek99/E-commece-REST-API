@@ -6,15 +6,25 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from ..models import Cart
 from ..serializers import CartSerializer
 from cart.services import CartServices
+from products.models import ProductVariant, ProductImages, ProductVariantSizes
+
 
 class CartAPIs(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
     def get(self, request):
-        products = Cart.objects.filter(user=request.user.id).select_related('product').only('product_id__name', 'product_id__price', 'quantity')
-        serilaizer = CartSerializer(products, many=True)
-        return Response(serilaizer.data, status=status.HTTP_200_OK)
+        products = Cart.objects.raw("""
+                        SELECT c.quantity, c.size, pv.id, p.name, p.seller, pv.color, pvs.price, ARRAY_AGG(pvs.size) AS sizes, ARRAY_AGG(pi.url) as images
+                        FROM CART AS c
+                        JOIN PRODUCT_VARIANT AS pv ON c.product_id = pv.id
+                        JOIN PRODUCT_VARIANT_SIZES AS pvs ON pvs.product_variant = c.product_variant AND pvs.size = c.size
+                        JOIN PRODUCT_IMAGES AS pi ON pi.product_variant = pv.id AND in_use = true
+                        JOIN PRODUCTS AS p ON p.id = pv.parent
+                        WHERE c.user_id = %s
+                    """, [request.user.id])
+
+        return Response(products, status=status.HTTP_200_OK)
 
     def post(self, request):
         if not request.data['product']:

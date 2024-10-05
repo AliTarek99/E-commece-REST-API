@@ -59,15 +59,17 @@ class ProductImages(models.Model):
     url = models.URLField()
     product = models.ForeignKey(Product, on_delete=models.PROTECT)
     product_variant = models.ForeignKey(ProductVariant, on_delete=models.PROTECT)
+    in_use = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
         db_table = 'Product_Images'
         indexes = [
-            models.Index(fields=['product_id']),
-            models.Index(fields=['product_variant_id']),
+            models.Index(fields=['product_id', 'in_use']),
+            models.Index(fields=['product_variant', 'created_at']),
         ]
         constraints = [
-            models.UniqueConstraint(fields=['product_variant_id', 'url'], name='unique_product_variant_image')
+            models.UniqueConstraint(fields=['product_variant_id', 'in_use', 'url'], name='unique_product_variant_image')
         ]
 
 

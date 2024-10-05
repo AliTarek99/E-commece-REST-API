@@ -1,18 +1,24 @@
 import os
 from datetime import datetime
+import base64
 
 class FileManagment():
     @classmethod
-    def save_images(cls, request, fieldname):
-        images = request.FILES.getlist(fieldname)
+    def save_images(cls, request, files):
         urls = []
         directory = 'media'
         if not os.path.exists(directory):
             os.makedirs(directory, exist_ok=True)
-        for image in images:
-            filename = f'{request.user.id}{int(datetime.now().timestamp())}{os.path.splitext(image.name)[1]}'
+        for image_data in files:
+            if "," in image:
+                header, image_base64 = image_data.split(',')
+            else:
+                image_base64 = image_data
+
+            image = base64.b64decode(image_base64)
+            file_extension = header.split('/')[1].split(';')[0] if "," in image_data else 'png'
+            filename = f'{request.user.id}_{int(datetime.now().timestamp())}.{file_extension}'
             urls.append(f'media/{filename}')
             with open(os.path.join('media', f'{filename}'), 'wb+') as destination:
-                for chunk in image.chunks():
-                    destination.write(chunk)
+                destination.write(image)
         return urls

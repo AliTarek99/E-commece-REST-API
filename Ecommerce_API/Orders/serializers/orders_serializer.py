@@ -3,6 +3,7 @@ from users.models import CustomUser as User
 from ..models import Orders
 from products.serializers import OutputProductSerializer
 import json
+from orders.services import PaymobServices
 
 class OrdersSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
@@ -39,3 +40,40 @@ class OrderItemsSerializer(serializers.Serializer):
         if value < 0:
             raise serializers.ValidationError("Quantity must be greater than zero.")
         return value
+    
+    
+class PaymobCallbackSerializer(serializers.Serializer):
+    hmac = serializers.CharField(max_length=255)
+    merchant_order_id = serializers.CharField(max_length=255)
+    
+    def validate_hmac(self, value):
+        if not PaymobServices.verify_hmac(value, self.context['request']):
+            raise serializers.ValidationError("Invalid HMAC.")
+        return value
+    
+    def validate_merchant_order_id(self, value):
+        try:
+            order = Orders.objects.get(merchant_order_id=value)
+            value = order
+        except Orders.DoesNotExist:
+            raise serializers.ValidationError("Order does not exist.")
+        return value
+    
+    def upadte(self, instance, validated_data):
+        validated_data.get('merchant_order_id').status = Orders.PAID
+        validated_data.get('merchant_order_id').paymob_response = self.context['request'].data
+        validated_data.get('merchant_order_id').save()
+        return validated_data.get('merchant_order_id')
+    
+
+class CreateOrderSerializer(serializers.Serializer):
+    email  = serializers.EmailField()
+    phone_number = serializers.CharField(max_length=20)
+    first_name = serializers.CharField(max_length=255)
+    last_name = serializers.CharField(max_length=255)
+    street = serializers.CharField(max_length=255)
+    building = serializers.CharField(max_length=255)
+    floor  = serializers.IntegerField()
+    apartment = serializers.IntegerField()
+    country = serializers.CharField(max_length=255)
+    state  = serializers.CharField(max_length=255, required=False)

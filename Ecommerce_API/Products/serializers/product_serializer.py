@@ -1,15 +1,18 @@
-from ..models import Product
+from ..models import Product, ProductVariant, ProductImages, ProductVariantSizes
 from rest_framework import serializers
 from users.models import CustomUser as User
 import json
+from django.db import transaction
+from shared.services import FileManagment
+
 
 class InputProductSerializer(serializers.Serializer):
-    name = serializers.CharField(max_length=150)
-    # description = serializers.CharField(max_length=500)
-    price = serializers.DecimalField(max_digits=10, decimal_places=2)
-    quantity = serializers.IntegerField()
-    # image = serializers.ImageField()
-    # related_products = serializers.ListField(child=serializers.JSONField(), required=False)
+    name = serializers.CharField(max_length=255)
+    description = serializers.CharField(max_length=255)
+    product_variants = serializers.ListField(child=serializers.JSONField())
+    max_price = serializers.FloatField(required=False, default=0.0)
+    min_price = serializers.FloatField(required=False, default=0.0)
+    
 
     def __validate_not_negative(self, value, field_name):
         if value < 0:
@@ -23,56 +26,57 @@ class InputProductSerializer(serializers.Serializer):
             attrs['quantity'] = self.__validate_not_negative(attrs['quantity'], 'quantity')
         return attrs
     
-    # def validate_related_products(self, value):
-    #     ids = []
-    #     tmp = []
-    #     for product in value:
-    #         product = json.loads(product)
-    #         tmp.append(product)
-    #         if 'relation' not in product:
-    #             raise serializers.ValidationError("relation field is required")
-    #         if 'id' not in product:
-    #             raise serializers.ValidationError("id field is required")
-    #         if 'name' not in product:
-    #             raise serializers.ValidationError("name field is required")
-            
-    #         product['relation'] = str.lower(product['relation'])
-    #         ids.append(product['id'])
-    #     value = tmp
-    #     if len(ids) != len(set(ids)):
-    #         raise serializers.ValidationError("Duplicate product ids are not allowed")
-    #     if Product.objects.filter(id__in=ids).count() != len(ids):
-    #         raise serializers.ValidationError("One or more product ids do not exist")
-    #     return value
+    def validate_product_variants(self, product_variants):
+        variant_fields = ['color', 'images', 'sizes']
+        sizes_fields = ['price', 'quantity', 'size']
+        for variant in product_variants:
+            if variant_fields not in variant:
+                raise serializers.ValidationError('Product variant must have color, images and sizes')
+            if 'sizes' in variant:
+                for size in variant['sizes']:
+                    if sizes_fields not in size:
+                        raise serializers.ValidationError('Product variant size must have price, quantity and size')
+                    size['price'] = self.__validate_not_negative(size['price'], 'price')
+                    self.validated_data['max_price'] = max(self.validated_data['max_price'], size['price'])
+                    self.validated_data['min_price'] = min(self.validated_data['min_price'], size['price'])
+                    self.validated_data['quantity'] += size['quantity']
+            else:
+                raise serializers.ValidationError('Product variant must have sizes')
+        return product_variants
+
     
     def create(self, validated_data):
         validated_data['seller_id'] = self.context.get('request').user.id
-        return Product.objects.create(**validated_data)
-    
-    def delete(self, instance):
-        if self.context.get('request').user.id == instance.seller.id:
-            instance.delete()
-            return instance
-        else:
-            raise serializers.ValidationError('You are not allowed to delete this product')
-        
-    def update(self, instance, validated_data):
-        if self.context.get('request').user.id == instance.seller.id:
-            instance.name = validated_data.get('name', instance.name)
-            instance.description = validated_data.get('description', instance.description)
-            instance.price = validated_data.get('price', instance.price)
-            instance.quantity = validated_data.get('quantity', instance.quantity)
-            instance.image = validated_data.get('image', instance.image)
-            instance.related_products = validated_data.get('related_products', instance.related_products)
+        with transaction.atomic():
+            product = Product.objects.create(
+                seller_id=validated_data['seller_id'], 
+                name=validated_data['name'], 
+                description=validated_data['description'], 
+                max_price=validated_data['max_price'], 
+                min_price=validated_data['min_price'],
+                quantity=validated_data['quantity'],
+                )
+            sizes = []
+            images = []
+            for variant in validated_data['product_variants']:
+                variant['parent_id'] = product.id
+                product_variant = ProductVariant.objects.create(**variant)
+                urls = FileManagment.save_images(self.context.get('request'), variant['images'], 'images')
+                for url in urls:
+                    images.append(ProductImages(url=url, product_id=product.id, product_variant_id=product_variant.id))
+                for size in variant['sizes']:
+                    size['product_variant_id'] = product_variant.id
+                    sizes.append(ProductVariantSizes(**size))
+            ProductVariantSizes.objects.bulk_create(sizes, batch_size=500)
+            ProductImages.objects.bulk_create(images, batch_size=500)
+            return product
 
-            instance.save()
-            return instance
-        else:
-            raise serializers.ValidationError('You are not allowed to update this product')
             
 
 
 class OutputProductSerializer(InputProductSerializer):
     id = serializers.IntegerField()
     seller = serializers.PrimaryKeyRelatedField(queryset=User.objects.all().only('id', 'name'))
-    # image = serializers.URLField()
+    product_variants = serializers.ListField(child=serializers.JSONField())
+    product_variant_sizes = serializers.ListField(child=serializers.JSONField())
+    image = serializers.ListField(child=serializers.URLField())
