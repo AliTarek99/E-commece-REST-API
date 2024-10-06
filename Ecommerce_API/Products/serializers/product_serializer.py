@@ -12,6 +12,7 @@ class InputProductSerializer(serializers.Serializer):
     product_variants = serializers.ListField(child=serializers.JSONField())
     max_price = serializers.FloatField(required=False, default=0.0)
     min_price = serializers.FloatField(required=False, default=0.0)
+    quantity = serializers.IntegerField(required=False, default=0)
     
 
     def __validate_not_negative(self, value, field_name):
@@ -30,16 +31,20 @@ class InputProductSerializer(serializers.Serializer):
         variant_fields = ['color', 'images', 'sizes']
         sizes_fields = ['price', 'quantity', 'size']
         for variant in product_variants:
-            if variant_fields not in variant:
+            if not all(key in variant for key in variant_fields):
                 raise serializers.ValidationError('Product variant must have color, images and sizes')
             if 'sizes' in variant:
+                sizes = set()
                 for size in variant['sizes']:
-                    if sizes_fields not in size:
+                    sizes.add(size['size'])
+                    if not all(key in size for key in sizes_fields):
                         raise serializers.ValidationError('Product variant size must have price, quantity and size')
                     size['price'] = self.__validate_not_negative(size['price'], 'price')
-                    self.validated_data['max_price'] = max(self.validated_data['max_price'], size['price'])
-                    self.validated_data['min_price'] = min(self.validated_data['min_price'], size['price'])
-                    self.validated_data['quantity'] += size['quantity']
+                    self.initial_data['max_price'] = max(self.initial_data.get('max_price', 0), size['price'])
+                    self.initial_data['min_price'] = min(self.initial_data.get('min_price', 10000000), size['price'])
+                    self.initial_data['quantity'] = self.initial_data.get('quantity', 0) + size['quantity']
+                if len(sizes) != len(variant['sizes']):
+                    raise serializers.ValidationError('Product variant must have unique sizes')
             else:
                 raise serializers.ValidationError('Product variant must have sizes')
         return product_variants
@@ -59,9 +64,8 @@ class InputProductSerializer(serializers.Serializer):
             sizes = []
             images = []
             for variant in validated_data['product_variants']:
-                variant['parent_id'] = product.id
-                product_variant = ProductVariant.objects.create(**variant)
-                urls = FileManagment.save_images(self.context.get('request'), variant['images'], 'images')
+                product_variant = ProductVariant.objects.create(color=variant['color'], parent_id=product.id)
+                urls = FileManagment.save_images(self.context.get('request'), variant['images'])
                 for url in urls:
                     images.append(ProductImages(url=url, product_id=product.id, product_variant_id=product_variant.id))
                 for size in variant['sizes']:
@@ -72,11 +76,38 @@ class InputProductSerializer(serializers.Serializer):
             return product
 
             
+class ProductImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductImages
+        fields = ['url']
+        
+    def to_representation(self, instance):
+        return instance.url
+        
+        
+class ProductVariantSizeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductVariantSizes
+        fields = ['price', 'quantity', 'size']
 
+class ProductVariantSerializer(serializers.ModelSerializer):
+    sizes = ProductVariantSizeSerializer(required=False, many=True, source='productvariantsizes_set')
+    images = ProductImageSerializer(required=False, many=True, source='productimages_set')
+    class Meta:
+        model = ProductVariant
+        fields = ['id', 'color', 'sizes', 'images']
+        
+class OutputProductSerializer(serializers.ModelSerializer):
+    product_images = ProductImageSerializer(required=False, many=True, source='productimages_set')
+    seller_name = serializers.CharField(source='seller.name', required=False)
+    
+    class Meta:
+        model = Product
+        fields = ['id', 'name', 'description', 'max_price', 'min_price', 'seller', 'product_images', 'seller_name']
 
-class OutputProductSerializer(InputProductSerializer):
+class OutputSingleProductSerializer(InputProductSerializer):
     id = serializers.IntegerField()
-    seller = serializers.PrimaryKeyRelatedField(queryset=User.objects.all().only('id', 'name'))
-    product_variants = serializers.ListField(child=serializers.JSONField())
-    product_variant_sizes = serializers.ListField(child=serializers.JSONField())
-    image = serializers.ListField(child=serializers.URLField())
+    seller = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    seller_name = serializers.CharField(source='seller.name', required=False)
+    product_variants = ProductVariantSerializer(required=False, many=True, source='productvariant_set')
+    product_variant_sizes = ProductVariantSizeSerializer(required=False, many=True, source='productvariantsizes_set')

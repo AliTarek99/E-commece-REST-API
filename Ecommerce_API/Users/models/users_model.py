@@ -27,8 +27,6 @@ class CustomUser(AbstractUser):
     email = models.EmailField(max_length=255)
     name = models.CharField(max_length=255)
     phone_number = models.TextField()
-    merchant_id = models.TextField(null=True)
-    balance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['name', 'password', 'phone_number']
@@ -37,7 +35,6 @@ class CustomUser(AbstractUser):
         constraints = [
             models.UniqueConstraint(fields=['email'], include=['password'], name='unique_email'),
             models.UniqueConstraint(fields=['phone_number'], name='unique_phone_number'),
-            models.UniqueConstraint(fields=['merchant_id'], name='unique_merchant_id'),
         ]
 
 

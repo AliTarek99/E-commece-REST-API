@@ -8,15 +8,16 @@ class CartServices():
     @classmethod
     def add_product_to_cart(cls, request):
         try:
-            product = ProductVariantSizes.objects.filter(size=request.data['size'], product_variant=request.data['product_variant']).select_related('product_varaint').first()
+            product = ProductVariantSizes.objects.filter(size=request.data['size'], product_variant=request.data['product_variant']).first()
             if not product:
                 error = Exception('Product not found')
                 error.status = status.HTTP_404_NOT_FOUND
             with transaction.atomic():
                 cart_product = Cart.objects.select_for_update().filter(user=request.user.id, product_variant=request.data['product_variant'], size=request.data['size']).first()
+                
                 serializer = CartSerializer(cart_product, data={
                         'user': request.user.id,
-                        'product_varaint': ProductVariantSizes.objects.filter(id=request.data['product']).only('id').first().id,
+                        'product_variant': request.data['product_variant'],
                         'quantity': request.data['quantity'],
                         'size': request.data['size'],
                     }, context={'user': request.user})
@@ -31,4 +32,5 @@ class CartServices():
             else:
                 error = Exception('Something went wrong')
                 error.status = status.HTTP_500_INTERNAL_SERVER_ERROR
+                print("Error while adding product to cart:", e)
                 raise error

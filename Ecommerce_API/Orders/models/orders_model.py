@@ -4,7 +4,7 @@ from products.models import ProductVariant, ProductVariantSizes
 
 class Orders(models.Model):
     id = models.AutoField(primary_key=True)
-    user = models.ForeignKey('users.CustomUser', on_delete=models.PROTECT)
+    user = models.ForeignKey('users.CustomUser', on_delete=models.SET_NULL, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     total_price = models.DecimalField(max_digits=7, decimal_places=2)
     address = models.CharField(max_length=255)
@@ -26,10 +26,10 @@ class Orders(models.Model):
     
 class OrdersItems(models.Model):
     order = models.ForeignKey(Orders, on_delete=models.CASCADE, related_name='orders_items')
-    product_variant = models.ForeignKey('products.ProductVariant', on_delete=models.PROTECT)
+    product_variant = models.ForeignKey('products.ProductVariant', on_delete=models.SET_NULL, null=True)
     price = models.DecimalField(max_digits=7, decimal_places=2)
     quantity = models.SmallIntegerField()
-    seller = models.ForeignKey('users.CustomUser', on_delete=models.PROTECT)
+    seller = models.ForeignKey('users.CustomUser', on_delete=models.SET_NULL, null=True)
     name = models.CharField(max_length=255)
     description = models.TextField()
     color = models.SmallIntegerField(choices=ProductVariant.COLOR_CHOICES)

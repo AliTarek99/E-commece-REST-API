@@ -57,8 +57,8 @@ class ProductVariant(models.Model):
     
 class ProductImages(models.Model):
     url = models.URLField()
-    product = models.ForeignKey(Product, on_delete=models.PROTECT)
-    product_variant = models.ForeignKey(ProductVariant, on_delete=models.PROTECT)
+    product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True)
+    product_variant = models.ForeignKey(ProductVariant, on_delete=models.SET_NULL, null=True)
     in_use = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     
@@ -101,3 +101,6 @@ class ProductVariantSizes(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['product_variant', 'size'], name='unique_product_variant_size')
         ]
+        
+    def __str__(self):
+        return f"{self.product_variant} - {self.size} - {self.quantity} - {self.price}"

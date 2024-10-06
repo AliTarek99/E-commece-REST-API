@@ -16,4 +16,7 @@ class Cart(models.Model):
 
 
     def __str__(self):
-        return f'{self.user} - {self.product}'
+        ret = ""
+        for keys in self.__dict__:
+            ret += f"{keys} : {self.__dict__[keys]} \n"
+        return ret

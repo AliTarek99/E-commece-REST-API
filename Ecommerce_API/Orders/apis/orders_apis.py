@@ -34,21 +34,31 @@ class OrdersAPIs(APIView):
     def post(self, request):
         serializer = CreateOrderSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        order = OrdersServices.create_order(request.user)
-        PaymobServices.create_intention(
-            amount=order.total_price, 
-            currency='EGP', 
-            items=order.orderItems, 
-            biling_data=serializer.data, 
-            customer_data=request.user, 
-            order_id=order.id
-        )
-        return Response(status=status.HTTP_201_CREATED)
+        try:
+            order, orderItems = OrdersServices.create_order(request.user)
+            if not order:
+                return Response({'error': 'Order not created'}, status=status.HTTP_400_BAD_REQUEST)
+            payment_url = PaymobServices.create_intention(
+                amount=order.total_price, 
+                currency='EGP', 
+                items=orderItems, 
+                biling_data=serializer.data, 
+                customer_data=request.user, 
+                order_id=order.id
+            )
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({'payment_url': payment_url}, status=status.HTTP_201_CREATED)
     
     
 class PaymentCallbackAPIs(APIView):
     def post(self, request):
         serializer = PaymobCallbackSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
-        serializer.update()
-        return Response(status=status.HTTP_200_OK)
+        if request.data.get('success'):
+            serializer.update()
+            return Response(status=status.HTTP_200_OK)
+        else:
+            # after validation merchant_order_id field contains the whole order not just the id
+            OrdersServices.restore_items(serializer.data.get('merchant_order_id'))
+            return Response(status=status.HTTP_200_OK)
