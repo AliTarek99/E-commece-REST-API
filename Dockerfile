@@ -1,5 +1,5 @@
 # Dockerfile for Django with Python 3.12
-FROM python:latest
+FROM python:3.12
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1

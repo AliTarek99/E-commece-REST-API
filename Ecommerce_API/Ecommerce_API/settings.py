@@ -28,17 +28,24 @@ SECRET_KEY = 'django-insecure-vo!%^(pr%ya!fsplj$dbavce1khkea#p^q63lb8oo%z%$k_pgq
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    'b901-154-178-81-81.ngrok-free.app/'
+]
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework_simplejwt',
+    'django.contrib.messages',
+    'django.contrib.sessions',
     # custom apps
     'users',
     'products',
@@ -52,6 +59,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware'
 ]
 
 ROOT_URLCONF = 'Ecommerce_API.urls'
@@ -84,8 +92,8 @@ DATABASES = {
         'NAME': config('DB_NAME', default='ecommerce'), 
         'USER': config('DB_USER', default='app'),
         'PASSWORD': config('DB_PASSWORD', default='postgresql'),
-        'HOST': config('DB_HOST', default='db'),
-        'PORT': config('DB_PORT', default='5432'),
+        'HOST': config('DB_HOST', default='localhost'),
+        'PORT': config('DB_PORT', default='5434'),
     }
 }
 
@@ -127,6 +135,15 @@ USE_TZ = True
 MEDIA_URL = '/media/'
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+STATIC_URL = '/static/'
+
+STATICFILES_DIRS = [
+    BASE_DIR / 'static', 
+]
+
+# Directory to collect static files
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field

@@ -10,6 +10,8 @@ services:
       - ./data/db:/var/lib/postgresql/data
     ports:
       - "5434:5432"
+    networks:
+      - Ecommerce_network
 
   web:
     build: .
@@ -21,3 +23,35 @@ services:
       - db
     env_file:
       - ./Ecommerce_API/.env
+    networks:
+      - Ecommerce_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health-check/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ngrok:
+    image: ngrok/ngrok
+    container_name: ngrok
+    volumes:
+      - ./ngrok_config/ngrok.yml:/ngrok.yml
+    command:
+      - "start"
+      - "--all"
+      - "--config"
+      - "/ngrok.yml"
+    ports:
+      - "4040:4040" # Ngrok dashboard
+    depends_on:
+      web:
+        condition: service_healthy
+    networks:
+      - Ecommerce_network
+
+
+networks:
+  Ecommerce_network:
+    driver: bridge
+    name: Ecommerce_network
+    external: true

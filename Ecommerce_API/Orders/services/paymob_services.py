@@ -6,37 +6,38 @@ import hashlib, hmac
 class PaymobServices:
     @classmethod
     def create_intention(cls, amount, currency, items, biling_data, customer_data, order_id):
+        print(order_id)
         try:
-            print('0'*500)
-            headers = {'Authorization': f'Token {config("PAYMOB_SECRET_KEY")}', 'Content-Type': 'application/json'}
+            headers = {"Authorization": f'Token {config("PAYMOB_SECRET_KEY")}', "Content-Type": 'application/json'}
             data = {
-                'merchant_order_id': order_id,
-                'amount': amount*100,
-                'currency': currency,
-                'expiration': 5800,
-                'payment_methods': [config("PAYMOB_CARD_INTEGRATION_ID")],
-                'billing_data': {
-                    'email': biling_data.get('email'),
-                    'phone_number': biling_data.get('phone_number'),
-                    'first_name': biling_data.get('first_name'),
-                    'last_name': biling_data.get('last_name'),
-                    'street': biling_data.get('street'),
-                    'building': biling_data.get('building'),
-                    'floor': biling_data.get('floor'),
-                    'apartment': biling_data.get('apartment'),
-                    'country': biling_data.get('country'),
-                    'state': biling_data.get('state'),
+                "amount": amount*100,
+                "currency": currency,
+                "expiration": 5800,
+                "payment_methods": [int(config("PAYMOB_CARD_INTEGRATION_ID"))],
+                "billing_data": {
+                    "email": biling_data.get('email'),
+                    "phone_number": biling_data.get('phone_number'),
+                    "first_name": biling_data.get('first_name'),
+                    "last_name": biling_data.get('last_name'),
+                    "street": biling_data.get('street'),
+                    "building": biling_data.get('building'),
+                    "floor": biling_data.get('floor'),
+                    "apartment": biling_data.get('apartment'),
+                    "country": biling_data.get('country'),
                 },
-                'customer': {
-                    'email': customer_data.email,
-                    'first_name': customer_data.name,
-                    'last_name': biling_data.get('last_name')
+                "metadata": {
+                    "merchant_order_id": str(order_id),
                 },
-                'items': [{"name": item.name, "amount": item.price*100, "description": item.description, "quantity": item.quantity} for item in items]
+                "customer": {
+                    "email": customer_data.email,
+                    "first_name": customer_data.name,
+                    "last_name": biling_data.get('last_name'),
+                },
+                # "items": [{"name": item.name, "amount": item.price*100, "description": item.description, "quantity": item.quantity} for item in items]
             }
-            intention_data = requests.post(f'{config("PAYMOB_API_BASE_URL")}/v1/intention/', data=data, headers=headers)
-            print('2'*500, intention_data.content)
+            intention_data = requests.post(f'{config("PAYMOB_API_BASE_URL")}v1/intention/', json=data, headers=headers)
             intention_data = intention_data.json()
+            print("paymob res: ", intention_data)
             if 'details' in intention_data:
                 raise Exception(intention_data['details'])
             return {'payment_url': f' https://accept.paymob.com/unifiedcheckout/?publicKey={config('PAYMOB_PUBLIC_KEY')}&clientSecret={intention_data['client_secret']}'}

@@ -2,6 +2,8 @@ import os
 from datetime import datetime
 import base64
 import uuid
+from rest_framework.views import APIView
+from django.http import JsonResponse
 
 class FileManagment():
     @classmethod
@@ -23,3 +25,7 @@ class FileManagment():
             with open(os.path.join('media', f'{filename}'), 'wb+') as destination:
                 destination.write(image)
         return urls
+    
+class HealthCheck(APIView):
+    def get(self, request):
+        return JsonResponse({"status": "ok"}, status=200)

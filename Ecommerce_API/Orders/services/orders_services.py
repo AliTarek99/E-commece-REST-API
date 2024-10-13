@@ -60,7 +60,8 @@ class OrdersServices:
                 print(e)
                 raise Exception("Something went wrong!")
         
-    def restore_items(self, order):
+    @classmethod
+    def restore_items(cls, order):
         order_items = OrdersItems.objects.filter(order=order)
         cart_items = []
         for item in order_items:
@@ -72,3 +73,4 @@ class OrdersServices:
             )
             cart_items.append(cart_item)
         Cart.objects.bulk_create(cart_items)
+        order.delete()

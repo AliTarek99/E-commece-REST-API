@@ -4,3 +4,5 @@ design
 .env
 data
 media
+staticfiles
+static
