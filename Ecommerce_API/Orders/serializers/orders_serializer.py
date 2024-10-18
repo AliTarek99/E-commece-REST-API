@@ -1,17 +1,25 @@
 from rest_framework import serializers
-from users.models import CustomUser as User
-from ..models import Orders
-from products.serializers import OutputProductSerializer
-import json
+from ..models import Orders, OrdersItems
 from orders.services import PaymobServices
 
+    
+class OrderItemsSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = OrdersItems
+        fields = '__all__'
+    def validate_quantity(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Quantity must be greater than zero.")
+        return value
+    
+    
 class OrdersSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     user = serializers.PrimaryKeyRelatedField(read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
     total_price = serializers.DecimalField(max_digits=10, decimal_places=2)
-    orders_items = serializers.ListField(child=serializers.JSONField(), required=False)
-
+    orders_items = OrderItemsSerializer(many=True)
 
     def validate_total_price(self, value):
         if value < 0:
@@ -27,21 +35,11 @@ class OrdersSerializer(serializers.Serializer):
             'id': instance.id,
             'user': instance.user_id,
             'created_at': instance.created_at.isoformat() if instance.created_at else None,
-            'total_price': str(instance.total_price)
-        }
-    
-    
-class OrderItemsSerializer(serializers.Serializer):
-    order = serializers.PrimaryKeyRelatedField(read_only=True)
-    product = serializers.PrimaryKeyRelatedField(read_only=True)
-    quantity = serializers.IntegerField()
+            'total_price': str(instance.total_price),
+            'orders_items': instance.orders_items.all(),
 
-    def validate_quantity(self, value):
-        if value < 0:
-            raise serializers.ValidationError("Quantity must be greater than zero.")
-        return value
-    
-    
+        }
+        
 class PaymobCallbackSerializer(serializers.Serializer):
     hmac = serializers.CharField(max_length=255)
     merchant_order_id = serializers.CharField(max_length=255)

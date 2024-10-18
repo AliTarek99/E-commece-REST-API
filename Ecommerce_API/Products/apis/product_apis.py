@@ -7,7 +7,6 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.response import Response
 from rest_framework import status
-from shared.services import FileManagment
 from django.db.models import Prefetch
 
 
@@ -29,8 +28,11 @@ class ProductAPIs(APIView):
         product = Product.objects.prefetch_related(
                 Prefetch(
                     'productvariant_set', 
-                    queryset=ProductVariant.objects.prefetch_related('productvariantsizes_set').prefetch_related(
-                        Prefetch('productimages_set', queryset=ProductImages.objects.filter(in_use=True))
+                    queryset=ProductVariant.objects.prefetch_related(
+                        Prefetch(
+                            'productimages_set', 
+                            queryset=ProductImages.objects.filter(in_use=True)
+                        )
                     )
                 )
             ).filter(id=pk).first()

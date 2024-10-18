@@ -4,10 +4,10 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from ..models import Cart
-from ..serializers import CartSerializer, OutputCartSerializer
+from ..serializers import OutputCartSerializer
 from cart.services import CartServices
-from products.models import ProductVariant, ProductImages, ProductVariantSizes, Product
-from django.db.models import Prefetch
+from products.models import ProductVariant, ProductImages
+from django.db.models import Prefetch, OuterRef, Subquery, Func, F, JSONField
 from django.contrib.postgres.aggregates import ArrayAgg
 
 
@@ -16,21 +16,59 @@ class CartAPIs(APIView):
     authentication_classes = [JWTAuthentication]
 
     def get(self, request):
-        user_cart_items = Cart.objects.filter(user_id=request.user.id).prefetch_related(
-            Prefetch(
-                'product_variant', 
-                queryset=ProductVariant.objects.prefetch_related(
-                    Prefetch('productimages_set', queryset=ProductImages.objects.filter(in_use=True))
-                ).only('parent__name', 'parent__seller_id', 'parent__seller__name', 'color', 'productvariantsizes__price')
-            )
-        ).annotate(
-            images=ArrayAgg('product_variant__productimages__url'),
-        ).all()
+        user_cart_items = Cart.objects.raw("""
+                        SELECT
+                            c.*,
+                            pv.size_id,
+                            pv.price,
+                            p.id,
+                            p.name,
+                            JSON_AGG(
+                                JSON_BUILD_OBJECT(
+                                    'url', pi.url,
+                                    'color', pi.color_id
+                                )
+                            ) AS images
+                        FROM
+                            cart_cart c
+                        JOIN
+                            "Product_Variant" pv ON c.product_variant_id = pv.id
+                        JOIN
+                            "products_product" p ON pv.parent_id = p.id
+                        JOIN
+                            "Product_Images" pi ON pi.product_id = p.id AND pi.color_id = pv.color_id
+                        WHERE
+                            c.user_id = %s
+                        GROUP BY
+                            c.id, p.id, pv.id
+                """, [request.user.id])
+        # user_cart_items = Cart.objects.filter(user_id=request.user.id).prefetch_related(
+        #     Prefetch(
+        #         'product_variant', 
+        #         queryset=ProductVariant.objects.only('parent__name', 'parent__seller_id', 'parent__seller__name', 'color', 'price')
+        #     )
+        # ).annotate(
+        #     images=Subquery(
+        #         ProductImages.objects.filter(
+        #             product_id=OuterRef('product_variant__parent_id'),
+        #             color=OuterRef('product_variant__color')
+        #         ).annotate(
+        #             json_image=Func(
+        #                 F('url'),
+        #                 F('color'),
+        #                 function='json_build_object',
+        #                 output_field=JSONField(),
+        #             )
+        #         ).values('json_image')
+        #         .annotate(image_array=ArrayAgg('json_image', distinct=True))
+        #         .values('image_array')
+        #     )
+        # ).all()
         serializer = OutputCartSerializer(user_cart_items, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
-        if not request.data.get('product_variant') or not request.data.get('size'):
+        if not request.data.get('product_variant'):
             return Response({'error': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
         if not request.data.get('quantity'):
             return Response({'error': 'Quantity is required'}, status=status.HTTP_400_BAD_REQUEST)

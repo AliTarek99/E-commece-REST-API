@@ -1,9 +1,9 @@
 import os
-from datetime import datetime
 import base64
 import uuid
 from rest_framework.views import APIView
 from django.http import JsonResponse
+from rest_framework.permissions import AllowAny
 
 class FileManagment():
     @classmethod
@@ -27,5 +27,6 @@ class FileManagment():
         return urls
     
 class HealthCheck(APIView):
+    permission_classes = [AllowAny]
     def get(self, request):
         return JsonResponse({"status": "ok"}, status=200)

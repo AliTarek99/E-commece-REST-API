@@ -28,6 +28,9 @@ class CustomUser(AbstractUser):
     name = models.CharField(max_length=255)
     phone_number = models.TextField()
     username = None  # This removes the username field
+    first_name = None
+    last_name = None
+
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['name', 'password', 'phone_number']
@@ -40,7 +43,4 @@ class CustomUser(AbstractUser):
 
 
     objects = CustomUserManager()
-
-    def __str__(self):
-        return self.first_name + ' ' + self.last_name
     

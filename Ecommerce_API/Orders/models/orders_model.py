@@ -1,5 +1,5 @@
 from django.db import models
-from products.models import ProductVariant, ProductVariantSizes
+from products.models import ProductVariant, Sizes, Colors
 
 
 class Orders(models.Model):
@@ -20,9 +20,6 @@ class Orders(models.Model):
 
     status = models.SmallIntegerField(choices=STATUS_CHOICES, default=PENDING)
 
-
-    def __str__(self):
-        return f"{self.user.username} - {self.order_date}"
     
 class OrdersItems(models.Model):
     order = models.ForeignKey(Orders, on_delete=models.CASCADE, related_name='orders_items')
@@ -32,8 +29,8 @@ class OrdersItems(models.Model):
     seller = models.ForeignKey('users.CustomUser', on_delete=models.SET_NULL, null=True)
     name = models.CharField(max_length=255)
     description = models.TextField()
-    color = models.SmallIntegerField(choices=ProductVariant.COLOR_CHOICES)
-    size = models.SmallIntegerField(choices=ProductVariantSizes.SIZE_CHOICES)
+    color = models.ForeignKey(Colors, on_delete=models.PROTECT)
+    size = models.ForeignKey(Sizes, on_delete=models.PROTECT)
 
 
     class Meta:

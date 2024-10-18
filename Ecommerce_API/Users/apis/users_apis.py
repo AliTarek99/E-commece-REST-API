@@ -6,8 +6,10 @@ from ..models import CustomUser as User
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.permissions import AllowAny
 
 class UserloginAPI(APIView):
+    permission_classes = [AllowAny]
     def post(self, request):
         if 'email' not in request.data or 'password' not in request.data:
             return Response({'error': 'Email and password are required'}, status=status.HTTP_400_BAD_REQUEST)
@@ -18,6 +20,7 @@ class UserloginAPI(APIView):
         return Response({'error': 'Invalid credentials'}, status=status.HTTP_400_BAD_REQUEST)
     
 class UserRegistrationAPI(APIView):
+    permission_classes = [AllowAny]
     def post(self, request):
         serializer = UserSerializer(data=request.data)
         if serializer.is_valid():

@@ -24,11 +24,14 @@ class OrdersAPIs(APIView):
             orders = serializer.data
         else:
             orders = Orders.objects.filter(id=order_id, user=request.user.id).prefetch_related(
-                Prefetch('order_items', queryset=OrdersItems.objects.prefetch_related(
+                Prefetch('orders_items__set', queryset=OrdersItems.objects.prefetch_related(
                     Prefetch('product_images', queryset=ProductImages.objects.filter(created_at__lt=OuterRef('orders.created_at')))
                     )
                 )
             ).first()
+            # print(orders.__dict__['_prefetched_objects_cache']['orders_items'].all().__dict__)
+
+            orders = OrdersSerializer(orders).data
         return Response(orders, status=status.HTTP_200_OK)
 
     def post(self, request):
@@ -39,12 +42,11 @@ class OrdersAPIs(APIView):
             if not order:
                 return Response({'error': 'Order not created'}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': str(e)}, status= e.status_code if hasattr(e, 'status_code') else status.HTTP_500_INTERNAL_SERVER_ERROR)
         try:
             payment_url = PaymobServices.create_intention(
                 amount=order.total_price, 
                 currency='EGP', 
-                items=orderItems, 
                 biling_data=serializer.data, 
                 customer_data=request.user, 
                 order_id=order.id

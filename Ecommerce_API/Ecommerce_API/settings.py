@@ -38,6 +38,7 @@ ALLOWED_HOSTS = [
 # Application definition
 
 INSTALLED_APPS = [
+    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -138,12 +139,10 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 STATIC_URL = '/static/'
 
-STATICFILES_DIRS = [
-    BASE_DIR / 'static', 
-]
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
 # Directory to collect static files
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
@@ -158,6 +157,8 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+        'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 8,
 }
 
 
@@ -171,10 +172,6 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-REST_FRAMEWORK = {
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 8,
-}
 
 AUTH_USER_MODEL = 'users.CustomUser'
 
@@ -183,3 +180,26 @@ PAYMOB_INTEGRATION_ID = config('PAYMOB_INTEGRATION_ID')
 PAYMOB_HMAC_SECRET = config('PAYMOB_HMAC_SECRET')
 PAYMOB_IFRAME_ID = config('PAYMOB_IFRAME_ID')
 PAYMOB_CARD_INTEGRATION_ID = config('PAYMOB_CARD_INTEGRATION_ID')
+
+# JAZZMIN_SETTINGS = {
+#     "site_title": "My Custom Admin",
+#     "site_header": "My Django Admin",
+#     "welcome_sign": "Welcome to My Admin Panel",
+#     "copyright": "My Company",
+#     "user_avatar": None,
+#     "topmenu_links": [
+#         {"name": "Home", "url": "admin:index", "permissions": ["auth.view_user"]},
+#         {"model": "auth.User"},
+#         {"app": "auth"},
+#     ],
+#     "hide_apps": ["sessions"],
+#     "hide_models": ["auth.Permission"],
+#     "order_with_respect_to": ["auth", "books", "book", "author"],
+#     "icons": {
+#         "auth": "fas fa-users-cog",
+#         "auth.user": "fas fa-user",
+#         "auth.Group": "fas fa-users",
+#     },
+#     "custom_css": None,
+#     "custom_js": None,
+# }

@@ -60,8 +60,4 @@ class Migration(migrations.Migration):
             model_name='customuser',
             constraint=models.UniqueConstraint(fields=('phone_number',), name='unique_phone_number'),
         ),
-        migrations.AddConstraint(
-            model_name='customuser',
-            constraint=models.UniqueConstraint(fields=('merchant_id',), name='unique_merchant_id'),
-        ),
     ]

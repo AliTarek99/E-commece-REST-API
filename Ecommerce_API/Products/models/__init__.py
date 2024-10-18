@@ -1,1 +1,1 @@
-from .product_model import Product, ProductVariant, ProductVariantSizes, ProductImages
+from .product_model import Product, ProductVariant, Colors, Sizes, ProductImages

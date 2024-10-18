@@ -1,0 +1,7 @@
+version: "2"
+
+authtoken: 2n4ONsudYEep1MocZoSdUrdWXwH_7n3kEV89tj5mzo6ySUVzJ
+tunnels:
+  web:
+    proto: http
+    addr: web:8001

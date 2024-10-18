@@ -42,8 +42,4 @@ class Migration(migrations.Migration):
             model_name='productimages',
             index=models.Index(fields=['product_variant', 'created_at'], name='Product_Ima_product_4f5d28_idx'),
         ),
-        migrations.AddConstraint(
-            model_name='productimages',
-            constraint=models.UniqueConstraint(fields=('product_variant_id', 'in_use', 'url'), name='unique_product_variant_image'),
-        ),
     ]

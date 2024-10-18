@@ -1,5 +1,5 @@
 from django.db import models
-from products.models import ProductVariantSizes
+from products.models import Sizes
 
 
 
@@ -7,10 +7,10 @@ class Cart(models.Model):
     user = models.ForeignKey('users.CustomUser', on_delete=models.CASCADE)
     product_variant = models.ForeignKey('products.ProductVariant', on_delete=models.CASCADE)
     quantity = models.IntegerField()
-    size = models.SmallIntegerField(choices=ProductVariantSizes.SIZE_CHOICES)
+
 
     class Meta:
-        unique_together = ['user', 'product_variant', 'size']
+        unique_together = ['user', 'product_variant']
         verbose_name = 'Cart'
         verbose_name_plural = 'Carts'
 

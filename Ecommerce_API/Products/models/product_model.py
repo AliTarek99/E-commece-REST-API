@@ -22,43 +22,40 @@ class Product(models.Model):
         ]
         
         
+class Colors(models.Model):
+    id = models.SmallAutoField(primary_key=True)
+    name = models.CharField(max_length=255)
+
+    class Meta:
+        db_table = 'Colors'
+
+class Sizes(models.Model):
+    id = models.SmallAutoField(primary_key=True)
+    name = models.CharField(max_length=255)
+
+    class Meta:
+        db_table = 'Sizes'
+        
 class ProductVariant(models.Model):
     id = models.AutoField(primary_key=True)
     parent = models.ForeignKey(Product, on_delete=models.CASCADE)
-    
-    RED = 1
-    BLUE = 2
-    GREEN = 3
-    YELLOW = 4
-    BLACK = 5
-    WHITE = 6
-    ORANGE = 7
-    PURPLE = 8
-
-    COLOR_CHOICES = [
-        (RED, 'Red'),
-        (BLUE, 'Blue'),
-        (GREEN, 'Green'),
-        (YELLOW, 'Yellow'),
-        (BLACK, 'Black'),
-        (WHITE, 'White'),
-        (ORANGE, 'Orange'),
-        (PURPLE, 'Purple'),
-    ]
-
-    color = models.SmallIntegerField(choices=COLOR_CHOICES)
+    color = models.ForeignKey(Colors, on_delete=models.PROTECT)
+    size = models.ForeignKey(Sizes, on_delete=models.PROTECT)
+    quantity = models.IntegerField()
+    price = models.FloatField()
     
     class Meta:
         db_table = 'Product_Variant'
-        constraints = [
-            models.UniqueConstraint(fields=['parent', 'id'], name='unique_product_variant'),
-            models.UniqueConstraint(fields=['color', 'id'], name='unique_color')
+        indexes = [
+            models.Index(fields=['parent', 'id'], name='unique_product_variant'),
+            models.Index(fields=['color', 'size', 'id'], name='unique_color_size'),
+            models.Index(fields=['size', 'color', 'id'], name='unique_size_color')
         ]
     
 class ProductImages(models.Model):
     url = models.URLField()
     product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True)
-    product_variant = models.ForeignKey(ProductVariant, on_delete=models.SET_NULL, null=True)
+    color = models.ForeignKey(Colors, on_delete=models.SET_NULL, null=True)
     in_use = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     
@@ -66,41 +63,8 @@ class ProductImages(models.Model):
         db_table = 'Product_Images'
         indexes = [
             models.Index(fields=['product_id', 'in_use']),
-            models.Index(fields=['product_variant', 'created_at']),
+            models.Index(fields=['product_id', 'color', 'created_at']),
         ]
         constraints = [
-            models.UniqueConstraint(fields=['product_variant_id', 'in_use', 'url'], name='unique_product_variant_image')
+            models.UniqueConstraint(fields=['product_id', 'url'], name='unique_product_variant_image')
         ]
-
-
-class ProductVariantSizes(models.Model):
-    product_variant = models.ForeignKey(ProductVariant, on_delete=models.CASCADE)
-    quantity = models.SmallIntegerField()
-    price = models.FloatField()
-    
-    SMALL=0
-    MEDIUM=1
-    LARGE=2
-    XLARGE=3
-    XXLARGE=4
-    XXXLARGE=5
-    
-    SIZE_CHOICES = [
-        (SMALL, 'Small'),
-        (MEDIUM, 'Medium'),
-        (LARGE, 'Large'),
-        (XLARGE, 'XLarge'),
-        (XXLARGE, 'XXLarge'),
-        (XXXLARGE, 'XXXLarge'),
-    ]
-    
-    size = models.SmallIntegerField(choices=SIZE_CHOICES)
-    
-    class Meta:
-        db_table = 'Product_Variant_Sizes'
-        constraints = [
-            models.UniqueConstraint(fields=['product_variant', 'size'], name='unique_product_variant_size')
-        ]
-        
-    def __str__(self):
-        return f"{self.product_variant} - {self.size} - {self.quantity} - {self.price}"
