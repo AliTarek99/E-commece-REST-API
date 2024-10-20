@@ -14,11 +14,10 @@ class CartServices():
                 error.status = status.HTTP_404_NOT_FOUND
             with transaction.atomic():
                 cart_product = Cart.objects.select_for_update().filter(user=request.user.id, product_variant=request.data['product_variant']).first()
-                
                 serializer = CartSerializer(cart_product, data={
                         'user': request.user.id,
                         'product_variant': request.data['product_variant'],
-                        'quantity': request.data['quantity'] + cart_product.quantity if cart_product else 0,
+                        'quantity': request.data['quantity'] + (cart_product.quantity if cart_product else 0),
                     }, context={'user': request.user})
                 if not serializer.is_valid():
                     error = Exception(serializer.errors)
