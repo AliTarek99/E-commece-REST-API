@@ -1,1 +1,1 @@
-from .product_serializer import OutputProductSerializer, InputProductSerializer, OutputSingleProductSerializer, ProductImageSerializer, ProductVariantSerializer
+from .product_serializer import BaseProductSerializer, InputProductSerializer, OutputProductSerializer, ProductImageSerializer, ProductVariantSerializer

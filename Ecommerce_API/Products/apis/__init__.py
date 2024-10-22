@@ -1,1 +1,1 @@
-from .product_apis import ProductAPIs, ProductList
+from .product_apis import ProductRetrievalAPIs, ProductCreateView, ProductDeleteView

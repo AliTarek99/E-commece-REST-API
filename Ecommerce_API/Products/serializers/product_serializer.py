@@ -5,14 +5,51 @@ import json
 from django.db import transaction
 from shared.services import FileManagment
 
+class ProductImageSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField(required=False)
+    
+    class Meta:
+        model = ProductImages
+        fields = ['url', 'color', 'image']
+        
+    def get_image(self, obj):
+        try:
+            return FileManagment.file_to_base64(obj.url)
+        except Exception as e:
+            return None
+    
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep.pop('url', None)
+        return rep
 
+    
+class ProductImageInputSerializer(serializers.ModelSerializer):
+    image = serializers.CharField(required=True)
+    class Meta:
+        model = ProductImages
+        fields = ['image', 'color']
+        
+    def to_representation(self, instance):
+        return instance.url
+    
+class ProductVariantSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(required=False)
+    size = serializers.PrimaryKeyRelatedField(required=False, queryset=Sizes.objects.all())
+    color = serializers.PrimaryKeyRelatedField(required=False, queryset=Colors.objects.all())
+    
+    class Meta:
+        model = ProductVariant
+        fields = ['id', 'color', 'size', 'quantity', 'price']
+    
 class InputProductSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=255)
     description = serializers.CharField(max_length=255)
-    product_variants = serializers.ListField(child=serializers.JSONField())
+    product_variants = ProductVariantSerializer(many=True, source='productvariant_set')
     max_price = serializers.FloatField(required=False, default=0.0)
     min_price = serializers.FloatField(required=False, default=0.0)
     quantity = serializers.IntegerField(required=False, default=0)
+    images = ProductImageInputSerializer(required=False, many=True, source='productimages_set')
     
 
     def __validate_not_negative(self, value, field_name):
@@ -28,30 +65,19 @@ class InputProductSerializer(serializers.Serializer):
         return attrs
     
     def validate_product_variants(self, product_variants):
-        variant_fields = ['color', 'images', 'sizes']
-        sizes_fields = ['price', 'quantity', 'size']
-        colors = set()
+        variants = set()
         sizes = set()
+        colors = set()
         for variant in product_variants:
-            if not all(key in variant for key in variant_fields):
-                raise serializers.ValidationError('Product variant must have color, images and sizes')
-            colors.add(variant['color'])
-            
-            if 'sizes' in variant:
-                variant_sizes = set()
-                for size in variant['sizes']:
-                    variant_sizes.add(size['size'])
-                    sizes.add(size['size'])
-                    if not all(key in size for key in sizes_fields):
-                        raise serializers.ValidationError('Product variant size must have price, quantity and size')
-                    size['price'] = self.__validate_not_negative(size['price'], 'price')
-                    self.initial_data['max_price'] = max(self.initial_data.get('max_price', 0), size['price'])
-                    self.initial_data['min_price'] = min(self.initial_data.get('min_price', 10000000), size['price'])
-                    self.initial_data['quantity'] = self.initial_data.get('quantity', 0) + size['quantity']
-                if len(variant_sizes) != len(variant['sizes']):
-                    raise serializers.ValidationError('Product variant must have unique sizes')
-            else:
-                raise serializers.ValidationError('Product variant must have sizes')
+            variants.add((variant['color'], variant['size']))
+            sizes.add(variant['size'].id)
+            colors.add(variant['color'].id)
+            variant['price'] = self.__validate_not_negative(variant['price'], 'price')
+            self.initial_data['max_price'] = max(self.initial_data.get('max_price', 0), variant['price'])
+            self.initial_data['min_price'] = min(self.initial_data.get('min_price', 10000000), variant['price'])
+            self.initial_data['quantity'] = self.initial_data.get('quantity', 0) + variant['quantity']
+        if len(variants) != len(product_variants):
+            raise serializers.ValidationError('Product variant must have unique sizes')
         existing_sizes = set(Sizes.objects.filter(id__in=sizes).values_list('id', flat=True))
         invalid_sizes = sizes - existing_sizes
         existing_colors = set(Colors.objects.filter(id__in=colors).values_list('id', flat=True))
@@ -76,36 +102,19 @@ class InputProductSerializer(serializers.Serializer):
                 )
             variants = []
             images = []
-            for variant in validated_data['product_variants']:
-                urls = FileManagment.save_images(self.context.get('request'), variant['images'])
-                for url in urls:
-                    images.append(ProductImages(url=url, product_id=product.id, color_id=variant['color']))
-                for size in variant['sizes']:
-                    variants.append(ProductVariant(color_id=variant['color'], size_id=size['size'], parent=product, quantity=size['quantity'], price=size['price']))
+            for variant in validated_data.get('productvariant_set', []):
+                variants.append(ProductVariant(color=variant['color'], size=variant['size'], parent=product, quantity=variant['quantity'], price=variant['price']))
+            images = FileManagment.save_images(self.context.get('request'), validated_data.get('productimages_set'))
+            image_objects = []
+            for image in images:
+                image_objects.append(ProductImages(url=image['url'], product=product, color=image['color']))
             ProductVariant.objects.bulk_create(variants, batch_size=500)
-            ProductImages.objects.bulk_create(images, batch_size=500)
+            ProductImages.objects.bulk_create(image_objects, batch_size=500)
             return product
 
             
-class ProductImageSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ProductImages
-        fields = ['url']
         
-    def to_representation(self, instance):
-        return instance.url
-        
-
-class ProductVariantSerializer(serializers.ModelSerializer):
-    size = serializers.PrimaryKeyRelatedField(required=False, queryset=Sizes.objects.all())
-    images = ProductImageSerializer(required=False, many=True, source='productimages_set')
-    color = serializers.PrimaryKeyRelatedField(required=False, queryset=Colors.objects.all())
-    
-    class Meta:
-        model = ProductVariant
-        fields = ['id', 'color', 'size', 'images', 'quantity', 'price']
-        
-class OutputProductSerializer(serializers.ModelSerializer):
+class BaseProductSerializer(serializers.ModelSerializer):
     product_images = serializers.SerializerMethodField()
     seller_name = serializers.CharField(source='seller.name', required=False)
     
@@ -117,8 +126,9 @@ class OutputProductSerializer(serializers.ModelSerializer):
         return ProductImages.objects.filter(product_id=obj.id, in_use=True).values_list('url', flat=True)
 
 
-class OutputSingleProductSerializer(InputProductSerializer):
+class OutputProductSerializer(InputProductSerializer):
     id = serializers.IntegerField()
     seller = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
     seller_name = serializers.CharField(source='seller.name', required=False)
     product_variants = ProductVariantSerializer(required=False, many=True, source='productvariant_set')
+    images = ProductImageSerializer(many=True, source='productimages_set')
