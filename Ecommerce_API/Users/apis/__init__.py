@@ -1,1 +1,1 @@
-from .users_apis import UserAPIs, UserloginAPI, UserRegistrationAPI
+from .users_apis import UserAPIs, UserloginAPI, UserRegistrationAPI, UserAddressesAPIs, UserAddressesListAPI

@@ -5,7 +5,7 @@ import hashlib, hmac
 
 class PaymobServices:
     @classmethod
-    def create_intention(cls, amount, currency, biling_data, customer_data, order_id):
+    def create_intention(cls, amount, currency, biling_data, customer_data, order_id, address):
         print(order_id)
         try:
             headers = {"Authorization": f'Token {config("PAYMOB_SECRET_KEY")}', "Content-Type": 'application/json'}
@@ -19,11 +19,10 @@ class PaymobServices:
                     "phone_number": biling_data.get('phone_number'),
                     "first_name": biling_data.get('first_name'),
                     "last_name": biling_data.get('last_name'),
-                    "street": biling_data.get('street'),
-                    "building": biling_data.get('building'),
-                    "floor": biling_data.get('floor'),
-                    "apartment": biling_data.get('apartment'),
-                    "country": biling_data.get('country'),
+                    "street": address.street,
+                    "building": address.building_no,
+                    "apartment": address.apartment_no,
+                    "country": address.country,
                 },
                 "metadata": {
                     "merchant_order_id": str(order_id),

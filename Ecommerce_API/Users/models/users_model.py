@@ -1,4 +1,5 @@
 from django.db import models
+from shared.services.models import TimeStamp
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 
 class CustomUserManager(BaseUserManager):
@@ -44,3 +45,16 @@ class CustomUser(AbstractUser):
 
     objects = CustomUserManager()
     
+class Address(TimeStamp):
+    id = models.AutoField(primary_key=True)
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    city = models.CharField(max_length=255)
+    street = models.CharField(max_length=255)
+    country = models.CharField(max_length=255)
+    building_no = models.SmallIntegerField()
+    apartment_no = models.SmallIntegerField()
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['user_id', 'id'])
+        ]

@@ -1,11 +1,10 @@
 from rest_framework.views import APIView
+from rest_framework.generics import ListAPIView, CreateAPIView
 from rest_framework.response import Response
 from rest_framework import status
-from ..serializers import UserSerializer
+from ..serializers import UserSerializer, AddressSerializer
 from ..models import CustomUser as User
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.permissions import IsAuthenticated
-from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import AllowAny
 
 class UserloginAPI(APIView):
@@ -30,8 +29,6 @@ class UserRegistrationAPI(APIView):
     
 
 class UserAPIs(APIView):
-    permission_classes = [IsAuthenticated]
-    authentication_classes = [JWTAuthentication]
 
     def patch(self, request):
         user = request.user
@@ -40,3 +37,16 @@ class UserAPIs(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+class UserAddressesListAPI(ListAPIView):
+    serializer_class = AddressSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        return user.address_set.all()
+    
+class UserAddressesAPIs(CreateAPIView):
+    serializer_class = AddressSerializer
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)

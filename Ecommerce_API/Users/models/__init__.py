@@ -1,1 +1,1 @@
-from .users_model import CustomUser
+from .users_model import CustomUser, Address

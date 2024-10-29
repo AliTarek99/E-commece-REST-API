@@ -8,6 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from orders.services import PaymobServices, OrdersServices
 from django.db.models import Prefetch, OuterRef
 from products.models import ProductImages
+from users.models import Address
 
 
 class OrdersAPIs(APIView):
@@ -35,10 +36,19 @@ class OrdersAPIs(APIView):
         return Response(orders, status=status.HTTP_200_OK)
 
     def post(self, request):
-        serializer = CreateOrderSerializer(data=request.data)
+        address = None
+        serializer = CreateOrderSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
+        if not request.data.get('address_id'):
+            address_data = serializer.validated_data.get('address')
+            address = Address.objects.create(**address_data, user=request.user)
         try:
-            order, orderItems = OrdersServices.create_order(request.user)
+            if not address:
+                address = serializer.validated_data.get('address_id')
+            order, orderItems = OrdersServices.create_order(
+                request.user, 
+                address_id=address.id
+            )
             if not order:
                 return Response({'error': 'Order not created'}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
@@ -49,7 +59,8 @@ class OrdersAPIs(APIView):
                 currency='EGP', 
                 biling_data=serializer.data, 
                 customer_data=request.user, 
-                order_id=order.id
+                order_id=order.id,
+                address=address
             )
         except Exception as e:
             OrdersServices.restore_items(order)

@@ -7,7 +7,7 @@ class Orders(models.Model):
     user = models.ForeignKey('users.CustomUser', on_delete=models.SET_NULL, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     total_price = models.DecimalField(max_digits=7, decimal_places=2)
-    address = models.CharField(max_length=255)
+    address = models.ForeignKey('users.Address', on_delete=models.PROTECT)
     paymob_response = models.JSONField(null=True)
     
     PENDING = 0

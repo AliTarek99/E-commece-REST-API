@@ -1,15 +1,26 @@
 from django.contrib import admin
-from users.models import CustomUser
+from users.models import CustomUser, Address
 from orders.admin import OrderInline
 from cart.admin import CartInline
 from products.admin import ProductInline
+
+class AddressAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'city', 'street', 'country', 'building_no', 'apartment_no')
+    list_filter = ('user', 'city', 'street', 'country', 'building_no', 'apartment_no')
+    search_fields = ('user', 'city', 'street', 'country', 'building_no', 'apartment_no')
+
+class AddressInline(admin.TabularInline):
+    model = Address
+    extra = 0
+    readonly_fields = ('id', 'user')
+    fields = ('id', 'user', 'city', 'street', 'country', 'building_no', 'apartment_no')
 
 class CustomUserAdmin(admin.ModelAdmin):
     list_display = ('id', 'email', 'first_name', 'last_name', 'is_superuser')
     list_filter = ('is_superuser',)
     search_fields = ('id', 'email')
     ordering = ('id',)
-    inlines = [OrderInline, CartInline, ProductInline]
+    inlines = [OrderInline, CartInline, ProductInline, AddressInline]
     
     # Customizing display names within the admin panel
     def get_model_perms(self, request):
@@ -20,3 +31,4 @@ class CustomUserAdmin(admin.ModelAdmin):
         return super().get_model_perms(request)
     
 admin.site.register(CustomUser, CustomUserAdmin)
+admin.site.register(Address, AddressAdmin)

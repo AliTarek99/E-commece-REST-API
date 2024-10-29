@@ -1,4 +1,4 @@
-from ..models import CustomUser as User
+from ..models import CustomUser as User, Address
 from rest_framework import serializers
 from orders.services import PaymobServices
 from decouple import config
@@ -30,3 +30,9 @@ class UserSerializer(serializers.Serializer):
         user.save()
         return user
     
+    
+class AddressSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Address
+        fields = ['id', 'city', 'street', 'country', 'apartment_no', 'building_no', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']

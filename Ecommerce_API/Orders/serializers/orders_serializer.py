@@ -1,6 +1,9 @@
 from rest_framework import serializers
 from ..models import Orders, OrdersItems
 from orders.services import PaymobServices
+from users.serializers import AddressSerializer
+from users.models import Address
+
 
     
 class OrderItemsSerializer(serializers.ModelSerializer):
@@ -69,9 +72,15 @@ class CreateOrderSerializer(serializers.Serializer):
     phone_number = serializers.CharField(max_length=20)
     first_name = serializers.CharField(max_length=255)
     last_name = serializers.CharField(max_length=255)
-    street = serializers.CharField(max_length=255)
-    building = serializers.CharField(max_length=255)
-    floor  = serializers.IntegerField()
-    apartment = serializers.IntegerField()
-    country = serializers.CharField(max_length=255)
-    state  = serializers.CharField(max_length=255, required=False)
+    address = AddressSerializer(required=False)
+    address_id = serializers.PrimaryKeyRelatedField(queryset=Address.objects.defer('created_at', 'updated_at') , required=False)
+    
+    def validate(self, attrs):
+        if not attrs.get('address_id') and not attrs.get('address'):
+            raise serializers.ValidationError("Either address_id or street, building_no, apartment_no, country and city are required.")
+        return attrs
+    
+    def validate_address_id(self, value):
+        if not value.user == self.context['request'].user:
+            raise serializers.ValidationError("Address does not belong to user.")
+        return value
