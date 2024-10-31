@@ -1,7 +1,8 @@
 from django.db import models
+from shared.services.models import TimeStamp
 from django.contrib.postgres.fields import ArrayField
 
-class Product(models.Model):
+class Product(TimeStamp):
     id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=255)
     description = models.TextField()
@@ -22,21 +23,21 @@ class Product(models.Model):
         ]
         
         
-class Colors(models.Model):
+class Colors(TimeStamp):
     id = models.SmallAutoField(primary_key=True)
     name = models.CharField(max_length=255)
 
     class Meta:
         db_table = 'Colors'
 
-class Sizes(models.Model):
+class Sizes(TimeStamp):
     id = models.SmallAutoField(primary_key=True)
     name = models.CharField(max_length=255)
 
     class Meta:
         db_table = 'Sizes'
         
-class ProductVariant(models.Model):
+class ProductVariant(TimeStamp):
     id = models.AutoField(primary_key=True)
     parent = models.ForeignKey(Product, on_delete=models.CASCADE)
     color = models.ForeignKey(Colors, on_delete=models.PROTECT)
@@ -52,12 +53,12 @@ class ProductVariant(models.Model):
             models.Index(fields=['size', 'color', 'id'], name='unique_size_color')
         ]
     
-class ProductImages(models.Model):
+class ProductImages(TimeStamp):
     url = models.URLField()
     product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True)
     color = models.ForeignKey(Colors, on_delete=models.SET_NULL, null=True)
+    default = models.BooleanField(default=False)
     in_use = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
         db_table = 'Product_Images'

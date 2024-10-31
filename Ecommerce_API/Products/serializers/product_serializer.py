@@ -10,7 +10,7 @@ class ProductImageSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = ProductImages
-        fields = ['url', 'color', 'image']
+        fields = ['url', 'color', 'image', 'default']
         
     def get_image(self, obj):
         try:
@@ -28,7 +28,7 @@ class ProductImageInputSerializer(serializers.ModelSerializer):
     image = serializers.CharField(required=True)
     class Meta:
         model = ProductImages
-        fields = ['image', 'color']
+        fields = ['image', 'color', 'default']
         
     def to_representation(self, instance):
         return instance.url
@@ -62,6 +62,12 @@ class InputProductSerializer(serializers.Serializer):
             attrs['price'] = self.__validate_not_negative(attrs['price'], 'price')
         if 'quantity' in attrs:    
             attrs['quantity'] = self.__validate_not_negative(attrs['quantity'], 'quantity')
+        cnt = 0
+        for i in attrs['productimages_set']:
+            if i['default']:
+                cnt += 1
+        if cnt > 1:
+            raise serializers.ValidationError('Only one default image is allowed')
         return attrs
     
     def validate_product_variants(self, product_variants):

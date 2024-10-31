@@ -34,5 +34,10 @@ class UserSerializer(serializers.Serializer):
 class AddressSerializer(serializers.ModelSerializer):
     class Meta:
         model = Address
-        fields = ['id', 'city', 'street', 'country', 'apartment_no', 'building_no', 'created_at', 'updated_at']
+        fields = ['id', 'city', 'street', 'country', 'apartment_no', 'building_no', 'created_at', 'updated_at', 'default']
         read_only_fields = ['id', 'created_at', 'updated_at']
+        
+    def create(self, validated_data):
+        if validated_data.get('default'):
+            Address.objects.filter(user=self.context['request'].user, default=True).update(default=False)
+        return super().create(validated_data)

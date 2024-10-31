@@ -1,53 +1,32 @@
 from rest_framework.views import APIView
-from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework import status
-from ..models import Orders, OrdersItems
+from ..models import Orders
 from ..serializers import OrdersSerializer, PaymobCallbackSerializer, CreateOrderSerializer
-from rest_framework.permissions import IsAuthenticated
 from orders.services import PaymobServices, OrdersServices
-from django.db.models import Prefetch, OuterRef
-from products.models import ProductImages
-from users.models import Address
+
+class GetOrdersAPIs(ListAPIView):
+    serializer_class = OrdersSerializer
+    ordering = ['-created_at']
+
+    def get_queryset(self):
+        id = self.request.query_params.get('id')
+        if not id:
+            return Orders.objects.filter(user=self.request.user.id).only('id', 'user', 'created_at', 'total_price').order_by('-created_at').all()
+        
+        return Orders.objects.filter(user=self.request.user.id, id=id).prefetch_related('orders_items')
 
 
 class OrdersAPIs(APIView):
-    permission_classes = [IsAuthenticated]
-    authentication_classes = [JWTAuthentication]
-
-    def get(self, request):
-        order_id = request.query_params.get('order_id')
-        orders = None
-        if not order_id:
-            orders = Orders.objects.filter(user=request.user.id).only('id', 'user', 'created_at', 'total_price').order_by('-created_at').all()
-            serializer = OrdersSerializer(list(orders), many=True)
-            
-            orders = serializer.data
-        else:
-            orders = Orders.objects.filter(id=order_id, user=request.user.id).prefetch_related(
-                Prefetch('orders_items__set', queryset=OrdersItems.objects.prefetch_related(
-                    Prefetch('product_images', queryset=ProductImages.objects.filter(created_at__lt=OuterRef('orders.created_at')))
-                    )
-                )
-            ).first()
-            # print(orders.__dict__['_prefetched_objects_cache']['orders_items'].all().__dict__)
-
-            orders = OrdersSerializer(orders).data
-        return Response(orders, status=status.HTTP_200_OK)
 
     def post(self, request):
-        address = None
         serializer = CreateOrderSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
-        if not request.data.get('address_id'):
-            address_data = serializer.validated_data.get('address')
-            address = Address.objects.create(**address_data, user=request.user)
         try:
-            if not address:
-                address = serializer.validated_data.get('address_id')
             order, orderItems = OrdersServices.create_order(
                 request.user, 
-                address_id=address.id
+                address=serializer.validated_data.get('address')
             )
             if not order:
                 return Response({'error': 'Order not created'}, status=status.HTTP_400_BAD_REQUEST)
@@ -60,7 +39,6 @@ class OrdersAPIs(APIView):
                 biling_data=serializer.data, 
                 customer_data=request.user, 
                 order_id=order.id,
-                address=address
             )
         except Exception as e:
             OrdersServices.restore_items(order)

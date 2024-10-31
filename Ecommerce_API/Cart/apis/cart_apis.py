@@ -20,13 +20,15 @@ class CartAPIs(APIView):
                         SELECT
                             c.*,
                             pv.size_id,
+                            pv.color_id,
                             pv.price,
                             p.id,
                             p.name,
                             JSON_AGG(
                                 JSON_BUILD_OBJECT(
                                     'url', pi.url,
-                                    'color', pi.color_id
+                                    'color_id', pi.color_id,
+                                    'default', pi.default
                                 )
                             ) AS images
                         FROM
@@ -42,29 +44,22 @@ class CartAPIs(APIView):
                         GROUP BY
                             c.id, p.id, pv.id
                 """, [request.user.id])
-        # user_cart_items = Cart.objects.filter(user_id=request.user.id).prefetch_related(
-        #     Prefetch(
-        #         'product_variant', 
-        #         queryset=ProductVariant.objects.only('parent__name', 'parent__seller_id', 'parent__seller__name', 'color', 'price')
-        #     )
-        # ).annotate(
-        #     images=Subquery(
-        #         ProductImages.objects.filter(
-        #             product_id=OuterRef('product_variant__parent_id'),
-        #             color=OuterRef('product_variant__color')
-        #         ).annotate(
-        #             json_image=Func(
-        #                 F('url'),
-        #                 F('color'),
-        #                 function='json_build_object',
-        #                 output_field=JSONField(),
-        #             )
-        #         ).values('json_image')
-        #         .annotate(image_array=ArrayAgg('json_image', distinct=True))
-        #         .values('image_array')
-        #     )
-        # ).all()
-        serializer = OutputCartSerializer(user_cart_items, many=True)
+        processed_items = []
+        for item in user_cart_items:
+            processed_items.append({
+                'product_variant': ProductVariant({
+                    'size_id': item.size_id,
+                    'color_id': item.color_id,
+                    'price': item.price,
+                    'id': item.product_variant_id,
+                }),
+                'id': item.id,
+                'name': item.name,
+                'quantity': item.quantity,
+                'images': item.images,
+            })
+        # Use the serializer on the processed data
+        serializer = OutputCartSerializer(processed_items, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):

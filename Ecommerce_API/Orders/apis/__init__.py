@@ -1,1 +1,1 @@
-from .orders_apis import OrdersAPIs, PaymentCallbackAPIs
+from .orders_apis import OrdersAPIs, PaymentCallbackAPIs, GetOrdersAPIs

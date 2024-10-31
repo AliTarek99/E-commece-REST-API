@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from products.models import ProductVariant
 from ..models import Cart
+from shared.services import FileManagment
 
 class CartSerializer(serializers.ModelSerializer):
     
@@ -33,18 +34,27 @@ class CartSerializer(serializers.ModelSerializer):
         return instance
     
 class VariantItemSerializer(serializers.ModelSerializer):
-    seller_name = serializers.CharField(source='parent.seller.name')
-    seller_id = serializers.IntegerField(source='parent.seller.id')
-    name = serializers.CharField(source='parent.name')
-    
     class Meta:
         model = ProductVariant
-        fields = ['id', 'color', 'price', 'seller_name', 'seller_id', 'name']
+        fields = ['id', 'color_id', 'price', 'size_id']
     
 class OutputCartSerializer(serializers.ModelSerializer):
-    images = serializers.ListField(child=serializers.URLField())
+    images = serializers.SerializerMethodField()
     product_variant = VariantItemSerializer()
+    product_id = serializers.IntegerField(source='product_variant.parent.id', required=False)
+    product_name = serializers.CharField(source='product_variant.parent.name', required=False)
     
     class Meta:
         model = Cart
-        fields = ['product_variant', 'quantity', 'images']
+        fields = ['id', 'product_variant', 'quantity', 'images', 'product_id', 'product_name']
+        
+    def get_images(self, obj):
+        images = obj.get('images', [])
+        return [
+            {
+                'color_id': img.get('color_id'),
+                'image': FileManagment.file_to_base64(img.get('url')),
+                'default': img.get('default', False)
+            }
+            for img in images
+        ]

@@ -8,7 +8,7 @@ from django.contrib.postgres.aggregates import ArrayAgg
 
 class OrdersServices:
     @classmethod
-    def create_order(self, user, address_id):
+    def create_order(self, user, address):
         
         try:
             cart = Cart.objects.filter(user=user).only(
@@ -38,7 +38,7 @@ class OrdersServices:
             total_price = sum([item.product_variant.price * item.quantity for item in cart])
             
             with transaction.atomic():
-                order = Orders.objects.create(user=user, total_price=total_price, address_id=address_id)
+                order = Orders.objects.create(user=user, total_price=total_price, address=address)
 
                 order_items = {}
                 variants = []

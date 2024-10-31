@@ -5,8 +5,7 @@ import hashlib, hmac
 
 class PaymobServices:
     @classmethod
-    def create_intention(cls, amount, currency, biling_data, customer_data, order_id, address):
-        print(order_id)
+    def create_intention(cls, amount, currency, biling_data, customer_data, order_id):
         try:
             headers = {"Authorization": f'Token {config("PAYMOB_SECRET_KEY")}', "Content-Type": 'application/json'}
             data = {
@@ -19,10 +18,10 @@ class PaymobServices:
                     "phone_number": biling_data.get('phone_number'),
                     "first_name": biling_data.get('first_name'),
                     "last_name": biling_data.get('last_name'),
-                    "street": address.street,
-                    "building": address.building_no,
-                    "apartment": address.apartment_no,
-                    "country": address.country,
+                    "street": biling_data.get('address').get('street'),
+                    "building": biling_data.get('address').get('building_no'),
+                    "apartment": biling_data.get('address').get('apartment_no'),
+                    "country": biling_data.get('address').get('country'),
                 },
                 "metadata": {
                     "merchant_order_id": str(order_id),
@@ -35,7 +34,6 @@ class PaymobServices:
             }
             intention_data = requests.post(f'{config("PAYMOB_API_BASE_URL")}v1/intention/', json=data, headers=headers)
             intention_data = intention_data.json()
-            print("paymob res: ", intention_data)
             if 'details' in intention_data:
                 raise Exception(intention_data['details'])
             return {'payment_url': f' https://accept.paymob.com/unifiedcheckout/?publicKey={config('PAYMOB_PUBLIC_KEY')}&clientSecret={intention_data['client_secret']}'}

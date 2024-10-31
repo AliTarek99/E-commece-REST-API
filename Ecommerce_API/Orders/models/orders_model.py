@@ -1,8 +1,9 @@
 from django.db import models
-from products.models import ProductVariant, Sizes, Colors
+from shared.services.models import TimeStamp
+from products.models import Sizes, Colors
 
 
-class Orders(models.Model):
+class Orders(TimeStamp):
     id = models.AutoField(primary_key=True)
     user = models.ForeignKey('users.CustomUser', on_delete=models.SET_NULL, null=True)
     created_at = models.DateTimeField(auto_now_add=True)

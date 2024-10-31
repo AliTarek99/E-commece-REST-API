@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from shared.services.util import FileManagment
 from ..models import Orders, OrdersItems
 from orders.services import PaymobServices
 from users.serializers import AddressSerializer
@@ -7,14 +8,27 @@ from users.models import Address
 
     
 class OrderItemsSerializer(serializers.ModelSerializer):
+    images = serializers.SerializerMethodField()
 
     class Meta:
         model = OrdersItems
-        fields = '__all__'
+        fields = ['price', 'seller', 'quantity', 'name', 'description', 'color', 'size', 'images']
+        
     def validate_quantity(self, value):
         if value < 0:
             raise serializers.ValidationError("Quantity must be greater than zero.")
         return value
+    
+    def get_images(self, obj):
+        images = obj.product_variant.parent.productimages_set.filter(created_at__lt=obj.order.created_at).values('url', 'color_id', 'default')
+        return [
+            {
+                'color_id': img.get('color_id'),
+                'image': FileManagment.file_to_base64(img.get('url')),
+                'default': img.get('default', False)
+            }
+            for img in images
+        ]
     
     
 class OrdersSerializer(serializers.Serializer):
@@ -28,20 +42,6 @@ class OrdersSerializer(serializers.Serializer):
         if value < 0:
             raise serializers.ValidationError("Total price cannot be negative.")
         return value
-    
-    def create(self, validated_data):
-        user = self.context['request'].user
-        order = Orders.objects.create(user=user, **validated_data)
-        return order
-    def to_representation(self, instance):
-        return {
-            'id': instance.id,
-            'user': instance.user_id,
-            'created_at': instance.created_at.isoformat() if instance.created_at else None,
-            'total_price': str(instance.total_price),
-            'orders_items': instance.orders_items.all(),
-
-        }
         
 class PaymobCallbackSerializer(serializers.Serializer):
     hmac = serializers.CharField(max_length=255)
@@ -74,11 +74,23 @@ class CreateOrderSerializer(serializers.Serializer):
     last_name = serializers.CharField(max_length=255)
     address = AddressSerializer(required=False)
     address_id = serializers.PrimaryKeyRelatedField(queryset=Address.objects.defer('created_at', 'updated_at') , required=False)
+    use_default_address = serializers.BooleanField(required=False)
     
     def validate(self, attrs):
-        if not attrs.get('address_id') and not attrs.get('address'):
-            raise serializers.ValidationError("Either address_id or street, building_no, apartment_no, country and city are required.")
+        if attrs.get('use_default_address'):
+            attrs['address'] = Address.objects.filter(user=self.context['request'].user, default=True).first()
+        elif attrs.get('address_id'):
+            attrs['address'] = attrs['address_id']
+        if not attrs.get('address'):
+            raise serializers.ValidationError("Either address or address_id or use_default_address set to true is required.")
         return attrs
+    
+    def validate_address(self, value):
+        if value.is_valid():
+            value = Address.objects.create(**value, user=self.context.get('request').user)
+            return value
+        else:
+            raise serializers.ValidationError(value.errors)
     
     def validate_address_id(self, value):
         if not value.user == self.context['request'].user:

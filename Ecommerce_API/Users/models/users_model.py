@@ -23,7 +23,7 @@ class CustomUserManager(BaseUserManager):
 
         return self.create_user(email, password, **extra_fields)
     
-class CustomUser(AbstractUser):
+class CustomUser(AbstractUser, TimeStamp):
     id = models.AutoField(primary_key=True)
     email = models.EmailField(max_length=255)
     name = models.CharField(max_length=255)
@@ -53,6 +53,7 @@ class Address(TimeStamp):
     country = models.CharField(max_length=255)
     building_no = models.SmallIntegerField()
     apartment_no = models.SmallIntegerField()
+    default = models.BooleanField(default=False)
     
     class Meta:
         indexes = [
