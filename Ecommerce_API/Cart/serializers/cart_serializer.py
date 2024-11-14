@@ -15,7 +15,7 @@ class CartSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('UnAuthorized access')
         product = ProductVariant.objects.filter(id=attrs['product_variant'].id).only('quantity').first()
         if product.quantity < attrs['quantity']:
-            raise serializers.ValidationError('Product quantity is not enough')
+            attrs['quantity'] = product.quantity
         return attrs
     
     def validate_quantity(self, value):
@@ -41,12 +41,12 @@ class VariantItemSerializer(serializers.ModelSerializer):
 class OutputCartSerializer(serializers.ModelSerializer):
     images = serializers.SerializerMethodField()
     product_variant = VariantItemSerializer()
-    product_id = serializers.IntegerField(source='product_variant.parent.id', required=False)
+    product_id = serializers.IntegerField(source='product_variant.parent_id', required=False)
     product_name = serializers.CharField(source='product_variant.parent.name', required=False)
     
     class Meta:
         model = Cart
-        fields = ['id', 'product_variant', 'quantity', 'images', 'product_id', 'product_name']
+        fields = ['product_variant', 'quantity', 'images', 'product_id', 'product_name']
         
     def get_images(self, obj):
         images = obj.get('images', [])

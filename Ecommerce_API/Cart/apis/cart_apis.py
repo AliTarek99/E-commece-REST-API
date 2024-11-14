@@ -47,14 +47,16 @@ class CartAPIs(APIView):
         processed_items = []
         for item in user_cart_items:
             processed_items.append({
-                'product_variant': ProductVariant({
+                'product_variant': {
                     'size_id': item.size_id,
                     'color_id': item.color_id,
                     'price': item.price,
                     'id': item.product_variant_id,
-                }),
-                'id': item.id,
-                'name': item.name,
+                    'parent_id': item.id,
+                    'parent': {
+                        'name': item.name
+                    }
+                },
                 'quantity': item.quantity,
                 'images': item.images,
             })
@@ -69,12 +71,12 @@ class CartAPIs(APIView):
             return Response({'error': 'Quantity is required'}, status=status.HTTP_400_BAD_REQUEST)
         
         try:
-            CartServices.add_product_to_cart(request)
+            cart_item = CartServices.add_product_to_cart(request)
         except Exception as e:
             return Response(str(e), status=e.status if hasattr(e, 'status') else status.HTTP_400_BAD_REQUEST)
 
         
-        return Response('cart updated.', status=status.HTTP_201_CREATED)
+        return Response({'quantity': cart_item.validated_data['quantity']}, status=status.HTTP_201_CREATED)
 
     def delete(self, request, product_variant):
         cart_product = Cart.objects.filter(user=request.user.id, product_variant=product_variant).first()

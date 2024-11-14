@@ -12,7 +12,7 @@ class OrderItemsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrdersItems
-        fields = ['price', 'seller', 'quantity', 'name', 'description', 'color', 'size', 'images']
+        fields = ['product_variant_id', 'price', 'seller', 'quantity', 'name', 'description', 'color', 'size', 'images']
         
     def validate_quantity(self, value):
         if value < 0:
@@ -32,7 +32,7 @@ class OrderItemsSerializer(serializers.ModelSerializer):
     
     
 class OrdersSerializer(serializers.Serializer):
-    id = serializers.IntegerField(read_only=True)
+    id = serializers.IntegerField()
     user = serializers.PrimaryKeyRelatedField(read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
     total_price = serializers.DecimalField(max_digits=10, decimal_places=2)

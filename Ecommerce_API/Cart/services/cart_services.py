@@ -24,6 +24,7 @@ class CartServices():
                     error.status = status.HTTP_400_BAD_REQUEST
                     raise error
                 serializer.save()
+                return serializer
         except Exception as e:
             if hasattr(e, 'status'):
                 raise e
