@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'django.contrib.messages',
     'django.contrib.sessions',
+    'silk',
     # custom apps
     'users',
     'products',
@@ -60,7 +61,8 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware'
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'silk.middleware.SilkyMiddleware',
 ]
 
 ROOT_URLCONF = 'Ecommerce_API.urls'
@@ -175,11 +177,7 @@ SIMPLE_JWT = {
 
 AUTH_USER_MODEL = 'users.CustomUser'
 
-PAYMOB_API_KEY = config('PAYMOB_API_KEY')
-PAYMOB_INTEGRATION_ID = config('PAYMOB_INTEGRATION_ID')
-PAYMOB_HMAC_SECRET = config('PAYMOB_HMAC_SECRET')
-PAYMOB_IFRAME_ID = config('PAYMOB_IFRAME_ID')
-PAYMOB_CARD_INTEGRATION_ID = config('PAYMOB_CARD_INTEGRATION_ID')
+SILKY_PYTHON_PROFILER = True
 
 # JAZZMIN_SETTINGS = {
 #     "site_title": "My Custom Admin",

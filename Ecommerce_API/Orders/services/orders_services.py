@@ -1,13 +1,18 @@
-from cart.serializers.cart_serializer import CartSerializer
 from ..models import Orders, OrdersItems
 from cart.models import Cart
 from django.db import transaction
 from products.models import ProductVariant, ProductImages
-from django.db.models import OuterRef, Subquery, F, Func
-from django.contrib.postgres.aggregates import ArrayAgg, JSONBAgg
+from django.db.models import OuterRef, Subquery, F
+from django.contrib.postgres.aggregates import ArrayAgg
 from rest_framework import status
-from django.db.models.functions import Cast
 
+import json
+
+from django.db.models import Aggregate
+
+class JSONBObjectAgg(Aggregate):
+    function = 'jsonb_object_agg'
+    template = '%(function)s(%(expressions)s)'
 
 class OrdersServices:
     @classmethod
@@ -99,24 +104,35 @@ class OrdersServices:
     @classmethod
     def reorder(cls, user, order_id):
         try:
-            order_items = OrdersItems.objects.filter(order_id=order_id).only('product_variant', 'quantity')
+            order = Orders.objects.filter(id=order_id, user=user).first()
+            if not order:
+                error = Exception('Order not found')
+                error.status = status.HTTP_404_NOT_FOUND
+                raise error
+            order_items = OrdersItems.objects.filter(order=order).only('product_variant', 'quantity')
             with transaction.atomic():
                 Cart.objects.filter(user=user).delete()
                 cart_items = []
-                print('here')
-                products = ProductVariant.objects.filter(id__in=[item.product_variant.id for item in order_items]).annotate(
-                    product_data=Func(
-                        F('id'), F('quantity'),
-                        function='jsonb_object_agg'
-                    )
-                ).values('product_data')[0].get('product_data')
-                print('here', products)
+                products = ProductVariant.objects.filter(
+                    id__in=[item.product_variant.id for item in order_items]
+                ).aggregate(
+                    product_data=JSONBObjectAgg(F('id'), F('quantity'))
+                ).get('product_data')
+                
+                # products = ProductVariant.objects.filter(id__in=[item.product_variant.id for item in order_items]).annotate(
+                #     product_data=Func(
+                #         F('id'), F('quantity'),
+                #         function='jsonb_object_agg'
+                #     )
+                # ).values('product_data')[0].get('product_data')
+
+                products = json.loads(products) if isinstance(products, str) else products
                 for item in order_items:
                     cart_items.append(
                         Cart(
                             user=user, 
                             product_variant=item.product_variant, 
-                            quantity=min(item.quantity, products.get(item.product_variant.id) or 99999999)
+                            quantity=min(item.quantity, products.get(f"{item.product_variant.id}") or 99999999)
                         )
                     )
                 Cart.objects.bulk_create(cart_items, batch_size=500)
