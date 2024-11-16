@@ -134,7 +134,7 @@ class BaseProductSerializer(serializers.ModelSerializer):
 
 class OutputProductSerializer(InputProductSerializer):
     id = serializers.IntegerField()
-    seller = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
-    seller_name = serializers.CharField(source='seller.name', required=False)
-    product_variants = ProductVariantSerializer(required=False, many=True, source='productvariant_set')
-    images = ProductImageSerializer(many=True, source='productimages_set')
+    seller_id = serializers.IntegerField(source='seller.id')
+    seller_name = serializers.CharField(required=False, source='seller.name')
+    product_variants = ProductVariantSerializer(required=False, many=True, source='filtered_variants')
+    images = ProductImageSerializer(many=True, source='filtered_images')

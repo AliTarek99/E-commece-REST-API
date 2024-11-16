@@ -19,11 +19,11 @@ class ProductRetrievalAPIs(ListAPIView, RetrieveAPIView):
     ordering = ['-max_price']
     lookup_field = 'id'
     def get_queryset(self):
-        return Product.objects.prefetch_related(
-            Prefetch('productimages_set', queryset=ProductImages.objects.filter(in_use=True).only('url'))
+        return Product.objects.only('id', 'name', 'description', 'max_price', 'min_price', 'quantity', 'seller').prefetch_related(
+            Prefetch('productimages_set', queryset=ProductImages.objects.filter(in_use=True).only('url', 'color', 'product', 'default'), to_attr='filtered_images')
         ).prefetch_related(
-            Prefetch('productvariant_set', queryset=ProductVariant.objects.filter(quantity__gt=0).only('id', 'color_id', 'size_id', 'price', 'quantity'))
-        ).all()
+            Prefetch('productvariant_set', queryset=ProductVariant.objects.filter(quantity__gt=0).only('id', 'color_id', 'size_id', 'price', 'quantity', 'parent'), to_attr='filtered_variants')
+        ).select_related('seller')
 
     def get(self, request, *args, **kwargs):
         if 'id' in self.kwargs:
