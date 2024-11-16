@@ -13,10 +13,18 @@ class Orders(TimeStamp):
     
     PENDING = 0
     PAID = 1
+    SHIPPED = 2
+    DELIVERED = 3
+    RETURNED = 4
+    CANCELLED = 5
 
     STATUS_CHOICES = [
         (PENDING, 'Pending'),
         (PAID, 'Completed'),
+        (SHIPPED, 'Shipped'),
+        (DELIVERED, 'Delivered'),
+        (RETURNED, 'Returned'),
+        (CANCELLED, 'Cancelled'),
     ]
 
     status = models.SmallIntegerField(choices=STATUS_CHOICES, default=PENDING)

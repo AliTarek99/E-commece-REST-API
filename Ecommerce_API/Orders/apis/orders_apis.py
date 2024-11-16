@@ -68,6 +68,17 @@ class ReorderAPI(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=e.status if hasattr(e, 'status') else status.HTTP_500_INTERNAL_SERVER_ERROR)
         return Response(status=status.HTTP_200_OK)
+   
+    
+class ReturnOrderAPI(APIView):
+    def post(self, request):
+        if not request.data.get('order_id'):
+            return Response({'error': 'Order ID is required'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            OrdersServices.return_order(request.user, request.data.get('order_id'))
+        except Exception as e:
+            return Response({'error': str(e)}, status=e.status if hasattr(e, 'status') else status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(status=status.HTTP_200_OK)
     
     
 class PaymentCallbackAPIs(APIView):

@@ -89,16 +89,7 @@ class OrdersServices:
         
     @classmethod
     def restore_items(cls, order):
-        order_items = OrdersItems.objects.filter(order=order)
-        cart_items = []
-        for item in order_items:
-            cart_item = Cart(
-                user=item.order.user,
-                product_variant=item.product_variant,
-                quantity=item.quantity
-            )
-            cart_items.append(cart_item)
-        Cart.objects.bulk_create(cart_items)
+        cls.reorder(user=order.user, order_id=order.id)
         order.delete()
         
     @classmethod
@@ -146,4 +137,26 @@ class OrdersServices:
                 print("Error while adding product to cart:", e)
                 raise error
             
-            
+    @classmethod
+    def return_order(cls, user, order_id):
+        try:
+            with transaction.atomic():
+                order = Orders.objects.filter(id=order_id, user=user).select_for_update().first()
+                if not order:
+                    error = Exception('Order not found')
+                    error.status = status.HTTP_404_NOT_FOUND
+                    raise error
+                if order.status != Orders.DELIVERED:
+                    error = Exception('Order is not delivered yet')
+                    error.status = status.HTTP_400_BAD_REQUEST
+                    raise error
+                order.status = Orders.RETURNED
+                order.save(update_fields=['status'])
+        except Exception as e:
+            if hasattr(e, 'status'):
+                raise e
+            else:
+                error = Exception('Something went wrong')
+                error.status = status.HTTP_500_INTERNAL_SERVER_ERROR
+                print("Error while returning order:", e)
+                raise error
