@@ -4,6 +4,7 @@ from users.models import CustomUser as User
 import json
 from django.db import transaction
 from shared.services import FileManagment
+from django.db import connection
 
 class ProductImageSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField(required=False)
@@ -33,6 +34,7 @@ class ProductImageInputSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         return instance.url
     
+    
 class ProductVariantSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(required=False)
     size = serializers.PrimaryKeyRelatedField(required=False, queryset=Sizes.objects.all())
@@ -51,7 +53,36 @@ class InputProductSerializer(serializers.Serializer):
     quantity = serializers.IntegerField(required=False, default=0)
     images = ProductImageInputSerializer(required=False, many=True, source='productimages_set')
     
-
+    # def to_internal_value(self, data):
+    #     data['product_variants'] = self.__validate_product_variants(data['product_variants'])
+    #     return super(InputProductSerializer, self).to_internal_value(data)
+    
+    # def __populate_colors_and_sizes(self, product_variants):
+    #     colors = []
+    #     sizes = []
+    #     for variant in product_variants:
+    #         colors.append(variant['color'])
+    #         sizes.append(variant['size'])
+        
+    #     with connection.cursor() as cursor:
+    #         cursor.execute("""
+    #             SELECT json_object_agg(id, json_build_object('id', id, 'name', name))
+    #             FROM "Colors";
+    #         """)
+    #         colors = cursor.fetchone()[0]
+    #     with connection.cursor() as cursor:
+    #         cursor.execute("""
+    #             SELECT json_object_agg(id, json_build_object('id', id, 'name', name))
+    #             FROM "Sizes";
+    #         """)
+    #         sizes = cursor.fetchone()[0]
+    #         for i, variant in enumerate(product_variants):
+    #             product_variants[i] = {**variant}
+    #             product_variants[i]['color'] = colors.get(f"{variant.get('color').get('id')}")
+    #             product_variants[i]['size'] = sizes.get(f"{variant.get('size').get('id')}")
+    #         return product_variants
+        
+        
     def __validate_not_negative(self, value, field_name):
         if value < 0:
             raise serializers.ValidationError(f"{field_name} cannot be negative")
@@ -75,7 +106,7 @@ class InputProductSerializer(serializers.Serializer):
         sizes = set()
         colors = set()
         for variant in product_variants:
-            variants.add((variant['color'], variant['size']))
+            variants.add((variant['color'].id, variant['size'].id))
             sizes.add(variant['size'].id)
             colors.add(variant['color'].id)
             variant['price'] = self.__validate_not_negative(variant['price'], 'price')
@@ -92,6 +123,7 @@ class InputProductSerializer(serializers.Serializer):
             raise serializers.ValidationError({'msg': 'invalid colors', 'colors': list(invalid_colors)})
         if len(invalid_sizes):
             raise serializers.ValidationError({'msg': 'invalid sizes', 'sizes': list(invalid_sizes)})
+        # product_variants = self.__populate_colors_and_sizes(product_variants)
         return product_variants
 
     
@@ -108,6 +140,7 @@ class InputProductSerializer(serializers.Serializer):
                 )
             variants = []
             images = []
+            # print(validated_data.get)
             for variant in validated_data.get('productvariant_set', []):
                 variants.append(ProductVariant(color=variant['color'], size=variant['size'], parent=product, quantity=variant['quantity'], price=variant['price']))
             images = FileManagment.save_images(self.context.get('request'), validated_data.get('productimages_set'))

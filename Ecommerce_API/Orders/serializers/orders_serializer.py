@@ -29,14 +29,25 @@ class OrderItemsSerializer(serializers.ModelSerializer):
             }
             for img in images
         ]
+   
+   
+class AddressSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Address
+        fields = ['id', 'city', 'street', 'country', 'building_no', 'apartment_no']
+
+class OrdersListSerializer(serializers.ModelSerializer):
+    address = AddressSerializer()
+    class Meta:
+        model = Orders
+        fields = ['id', 'created_at', 'total_price', 'address', 'total_price', 'status']
     
-    
-class OrdersSerializer(serializers.Serializer):
-    id = serializers.IntegerField()
+class OrdersSerializer(OrdersListSerializer):
     user = serializers.PrimaryKeyRelatedField(read_only=True)
-    created_at = serializers.DateTimeField(read_only=True)
-    total_price = serializers.DecimalField(max_digits=10, decimal_places=2)
-    orders_items = OrderItemsSerializer(many=True)
+    orders_items = OrderItemsSerializer(many=True, required=False)
+    class Meta:
+        model = Orders
+        fields = ['id', 'created_at', 'total_price', 'address', 'total_price', 'status', 'user', 'orders_items']
 
     def validate_total_price(self, value):
         if value < 0:

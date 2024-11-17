@@ -32,7 +32,7 @@ class ProductRetrievalAPIs(ListAPIView, RetrieveAPIView):
     
     
 class ProductCreateView(CreateAPIView):
-    queryset = Product.objects.prefetch_related('product_variant__set').all()
+    queryset = Product.objects.all()
     serializer_class = InputProductSerializer
     
 class ProductDeleteView(DestroyAPIView):

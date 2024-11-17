@@ -3,17 +3,24 @@ from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.response import Response
 from rest_framework import status
 from ..models import Orders
-from ..serializers import OrdersSerializer, PaymobCallbackSerializer, CreateOrderSerializer
+from ..serializers import OrdersSerializer, PaymobCallbackSerializer, CreateOrderSerializer, OrdersListSerializer
 from orders.services import PaymobServices, OrdersServices
 from orders.queryset import ReportQueryset
 
 
 class GetOrdersListAPIs(ListAPIView):
-    serializer_class = OrdersSerializer
+    serializer_class = OrdersListSerializer
     ordering = ['-created_at']
 
     def get_queryset(self):
-        return Orders.objects.filter(user=self.request.user.id).only('id', 'user', 'created_at', 'total_price').order_by('-created_at')
+        return Orders.objects.filter(user=self.request.user.id).only(
+            'id', 
+            'user', 
+            'created_at', 
+            'total_price',
+            'address',
+            'status'
+        ).select_related('address').order_by('-created_at')
     
 class GetOrderDetailsAPIs(RetrieveAPIView):
     serializer_class = OrdersSerializer
