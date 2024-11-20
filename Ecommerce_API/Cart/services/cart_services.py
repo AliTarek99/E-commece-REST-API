@@ -12,13 +12,13 @@ class CartServices():
             if not product:
                 error = Exception('Product not found')
                 error.status = status.HTTP_404_NOT_FOUND
+                raise error
             with transaction.atomic():
                 cart_product = Cart.objects.select_for_update().filter(user=request.user.id, product_variant=request.data['product_variant']).first()
                 serializer = CartSerializer(cart_product, data={
-                        'user': request.user.id,
-                        'product_variant': request.data['product_variant'],
+                        'user_id': request.user.id,
                         'quantity': request.data['quantity'] + (cart_product.quantity if cart_product else 0),
-                    }, context={'user': request.user})
+                    }, context={'user': request.user, 'product_variant': product})
                 if not serializer.is_valid():
                     error = Exception(serializer.errors)
                     error.status = status.HTTP_400_BAD_REQUEST

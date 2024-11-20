@@ -4,16 +4,17 @@ from ..models import Cart
 from shared.services import FileManagment
 
 class CartSerializer(serializers.ModelSerializer):
+    user_id=serializers.IntegerField()
     
     class Meta:
         model = Cart
-        fields = ['user', 'product_variant', 'quantity']
+        fields = ['user_id', 'quantity']
 
 
     def validate(self, attrs):
-        if self.initial_data['user'] != self.context.get('user').id:
+        if self.initial_data['user_id'] != self.context.get('user').id:
             raise serializers.ValidationError('UnAuthorized access')
-        product = ProductVariant.objects.filter(id=attrs['product_variant'].id).only('quantity').first()
+        product = self.context.get('product_variant')
         if product.quantity < attrs['quantity']:
             attrs['quantity'] = product.quantity
         return attrs
@@ -26,6 +27,7 @@ class CartSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         validated_data['user'] = self.context.get('user')
+        validated_data['product_variant'] = self.context.get('product_variant')
         return Cart.objects.create(**validated_data)
     
     def update(self, instance, validated_data):
