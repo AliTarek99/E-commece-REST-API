@@ -40,7 +40,7 @@ class OrdersItems(models.Model):
     description = models.TextField()
     color = models.ForeignKey(Colors, on_delete=models.PROTECT)
     size = models.ForeignKey(Sizes, on_delete=models.PROTECT)
-
+    image_url = models.URLField()
 
     class Meta:
         unique_together = ('order', 'product_variant')

@@ -2,8 +2,8 @@ from ..models import Orders, OrdersItems
 from cart.models import Cart
 from django.db import transaction
 from products.models import ProductVariant, ProductImages
-from django.db.models import OuterRef, Subquery, F, Prefetch
-from django.contrib.postgres.aggregates import ArrayAgg
+from django.db.models import OuterRef, Subquery
+from django.db.models.functions import Coalesce
 from rest_framework import status
 
 
@@ -24,12 +24,20 @@ class OrdersServices:
                 'product_variant__size', 
                 'product_variant__parent'
             ).annotate(
-                default_image=Subquery(
-                    ProductImages.objects.filter(
-                        product_id=OuterRef('product_variant__parent_id'),
-                        color=OuterRef('product_variant__color'),
-                        default=True
-                    ).values('url')[:1]
+                default_image=Coalesce(
+                    Subquery(
+                        ProductImages.objects.filter(
+                            product_id=OuterRef('product_variant__parent_id'),
+                            color=OuterRef('product_variant__color'),
+                            default=True
+                        ).values('url')[:1]
+                    ),
+                    Subquery(
+                        ProductImages.objects.filter(
+                            product_id=OuterRef('product_variant__parent_id'),
+                            color=OuterRef('product_variant__color')
+                        ).values('url')[:1]
+                    )
                 )
             ).all()
             
@@ -54,6 +62,7 @@ class OrdersServices:
                         color=item.product_variant.color,
                         name=item.product_variant.parent.name,
                         seller_id=item.product_variant.parent.seller_id,
+                        image_url=item.default_image
                     )
                     order_items[f'{order_item.product_variant_id}'] = order_item
                     variants.append(item.product_variant_id)
@@ -70,7 +79,7 @@ class OrdersServices:
                         raise e
                 ProductVariant.objects.bulk_update(products, ['quantity'], batch_size=500)
 
-                orderItems = OrdersItems.objects.bulk_create(order_items.values())
+                OrdersItems.objects.bulk_create(order_items.values())
                 Cart.objects.filter(user_id=user.id).delete()
                 return order
         except Exception as e:
