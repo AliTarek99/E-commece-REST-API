@@ -2,17 +2,12 @@ from ..models import Orders, OrdersItems
 from cart.models import Cart
 from django.db import transaction
 from products.models import ProductVariant, ProductImages
-from django.db.models import OuterRef, Subquery, F
+from django.db.models import OuterRef, Subquery, F, Prefetch
 from django.contrib.postgres.aggregates import ArrayAgg
 from rest_framework import status
 
+
 import json
-
-from django.db.models import Aggregate
-
-class JSONBObjectAgg(Aggregate):
-    function = 'jsonb_object_agg'
-    template = '%(function)s(%(expressions)s)'
 
 class OrdersServices:
     @classmethod
@@ -20,28 +15,26 @@ class OrdersServices:
         
         try:
             cart = Cart.objects.filter(user=user).only(
-                'user_id', 
-                'product_variant_id', 
-                'quantity', 'product_variant__size', 
-                'product_variant__price',
+                'user_id',  
+                'quantity', 
+                'product_variant'
+            ).select_related(
+                'product_variant', 
                 'product_variant__color', 
-                'product_variant__parent__name',
-                'product_variant__parent__seller_id', 
-                'product_variant__parent__seller__name',
-                'product_variant__parent__description',
+                'product_variant__size', 
+                'product_variant__parent'
             ).annotate(
-                images=Subquery(
+                default_image=Subquery(
                     ProductImages.objects.filter(
                         product_id=OuterRef('product_variant__parent_id'),
-                        color=OuterRef('product_variant__color')
-                    ).values('product_id').annotate(
-                        image_urls=ArrayAgg('url')
-                    ).values('image_urls')
+                        color=OuterRef('product_variant__color'),
+                        default=True
+                    ).values('url')[:1]
                 )
             ).all()
             
             if len(list(cart)) == 0:
-                return False, False
+                return None
 
             total_price = sum([item.product_variant.price * item.quantity for item in cart])
             
@@ -79,7 +72,7 @@ class OrdersServices:
 
                 orderItems = OrdersItems.objects.bulk_create(order_items.values())
                 Cart.objects.filter(user_id=user.id).delete()
-                return order, orderItems
+                return order
         except Exception as e:
             if hasattr(e, 'status_code'):
                 raise e
@@ -100,30 +93,19 @@ class OrdersServices:
                 error = Exception('Order not found')
                 error.status = status.HTTP_404_NOT_FOUND
                 raise error
-            order_items = OrdersItems.objects.filter(order=order).only('product_variant', 'quantity')
+            order_items = OrdersItems.objects.filter(order=order).only('product_variant', 'quantity').select_related('product_variant')
             with transaction.atomic():
                 Cart.objects.filter(user=user).delete()
                 cart_items = []
-                products = ProductVariant.objects.filter(
-                    id__in=[item.product_variant.id for item in order_items]
-                ).aggregate(
-                    product_data=JSONBObjectAgg(F('id'), F('quantity'))
-                ).get('product_data')
-                
-                # products = ProductVariant.objects.filter(id__in=[item.product_variant.id for item in order_items]).annotate(
-                #     product_data=Func(
-                #         F('id'), F('quantity'),
-                #         function='jsonb_object_agg'
-                #     )
-                # ).values('product_data')[0].get('product_data')
-
-                products = json.loads(products) if isinstance(products, str) else products
+                    
                 for item in order_items:
+                    if item.product_variant is None:
+                        continue
                     cart_items.append(
                         Cart(
                             user=user, 
                             product_variant=item.product_variant, 
-                            quantity=min(item.quantity, products.get(f"{item.product_variant.id}") or 99999999)
+                            quantity=min(item.quantity, item.product_variant.quantity)
                         )
                     )
                 Cart.objects.bulk_create(cart_items, batch_size=500)

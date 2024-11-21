@@ -37,7 +37,7 @@ class OrdersAPIs(APIView):
         serializer = CreateOrderSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         try:
-            order, orderItems = OrdersServices.create_order(
+            order = OrdersServices.create_order(
                 request.user, 
                 address=serializer.validated_data.get('address')
             )
