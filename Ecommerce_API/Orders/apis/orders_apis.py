@@ -54,7 +54,7 @@ class OrdersAPIs(APIView):
                 order_id=order.id,
             )
         except Exception as e:
-            OrdersServices.restore_items(order)
+            OrdersServices.restore_items(order, user=request.user)
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         return Response(payment_url, status=status.HTTP_201_CREATED)
     

@@ -81,9 +81,11 @@ class OrdersServices:
                 raise Exception("Something went wrong!")
         
     @classmethod
-    def restore_items(cls, order):
-        cls.reorder(user=order.user, order_id=order.id)
-        order.delete()
+    def restore_items(cls, order, user):
+        with transaction.atomic():
+            cls.return_items_to_cart(user=user, order=order)
+            cls.return_items_to_stock(order)
+            order.delete()
         
     @classmethod
     def reorder(cls, user, order_id):
@@ -93,22 +95,10 @@ class OrdersServices:
                 error = Exception('Order not found')
                 error.status = status.HTTP_404_NOT_FOUND
                 raise error
-            order_items = OrdersItems.objects.filter(order=order).only('product_variant', 'quantity').select_related('product_variant')
+            
             with transaction.atomic():
                 Cart.objects.filter(user=user).delete()
-                cart_items = []
-                    
-                for item in order_items:
-                    if item.product_variant is None:
-                        continue
-                    cart_items.append(
-                        Cart(
-                            user=user, 
-                            product_variant=item.product_variant, 
-                            quantity=min(item.quantity, item.product_variant.quantity)
-                        )
-                    )
-                Cart.objects.bulk_create(cart_items, batch_size=500)
+                cls.return_items_to_cart(order, user)
                 
         except Exception as e:
             if hasattr(e, 'status'):
@@ -134,6 +124,8 @@ class OrdersServices:
                     raise error
                 order.status = Orders.RETURNED
                 order.save(update_fields=['status'])
+                
+                cls.return_items_to_stock(order)
         except Exception as e:
             if hasattr(e, 'status'):
                 raise e
@@ -142,3 +134,32 @@ class OrdersServices:
                 error.status = status.HTTP_500_INTERNAL_SERVER_ERROR
                 print("Error while returning order:", e)
                 raise error
+          
+    @classmethod
+    def return_items_to_stock(self, order):
+        order_items = OrdersItems.objects.filter(order=order).select_related('product_variant').all()
+        variants_to_update = []
+        for item in order_items:
+            if item.product_variant is None:
+                continue
+            item.product_variant.quantity = item.product_variant.quantity + item.quantity
+            item.product_variant.save(update_fields=['quantity'])
+            variants_to_update.append(item.product_variant)
+        ProductVariant.objects.bulk_update(variants_to_update, ['quantity'], batch_size=500)
+    
+    @classmethod
+    def return_items_to_cart(self, order, user):
+        order_items = OrdersItems.objects.filter(order=order).only('product_variant', 'quantity').select_related('product_variant')
+        cart_items = []
+                    
+        for item in order_items:
+            if item.product_variant is None:
+                continue
+            cart_items.append(
+                Cart(
+                    user=user, 
+                    product_variant=item.product_variant, 
+                    quantity=min(item.quantity, item.product_variant.quantity)
+                )
+            )
+        Cart.objects.bulk_create(cart_items, batch_size=500)
