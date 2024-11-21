@@ -146,6 +146,30 @@ class OrdersServices:
             item.product_variant.save(update_fields=['quantity'])
             variants_to_update.append(item.product_variant)
         ProductVariant.objects.bulk_update(variants_to_update, ['quantity'], batch_size=500)
+        
+    @classmethod
+    def cancel_order(self, user, order_id):
+        try:
+            with transaction.atomic():
+                order = Orders.objects.filter(id=order_id, user=user).select_for_update().first()
+                if not order:
+                    error = Exception('Order not found')
+                    error.status = status.HTTP_404_NOT_FOUND
+                    raise error
+                if order.status >= Orders.SHIPPED:
+                    error = Exception(f'Order is already {order.STATUS_CHOICES[order.status][1]}')
+                    error.status = status.HTTP_400_BAD_REQUEST
+                    raise error
+                order.status = Orders.CANCELLED
+                order.save(update_fields=['status'])
+        except Exception as e:
+            if hasattr(e, 'status'):
+                raise e
+            else:
+                error = Exception('Something went wrong')
+                error.status = status.HTTP_500_INTERNAL_SERVER_ERROR
+                print("Error while canceling order:", e)
+                raise error
     
     @classmethod
     def return_items_to_cart(self, order, user):

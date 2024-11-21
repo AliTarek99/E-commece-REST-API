@@ -20,7 +20,7 @@ class Orders(TimeStamp):
 
     STATUS_CHOICES = [
         (PENDING, 'Pending'),
-        (PAID, 'Completed'),
+        (PAID, 'Preparing your order'),
         (SHIPPED, 'Shipped'),
         (DELIVERED, 'Delivered'),
         (RETURNED, 'Returned'),
