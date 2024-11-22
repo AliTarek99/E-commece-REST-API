@@ -1,6 +1,7 @@
 from django.db import models
 from shared.services.models import TimeStamp
 from django.contrib.auth.models import AbstractUser, BaseUserManager
+from shipping.models import City
 
 class CustomUserManager(BaseUserManager):
     def create_user(self, email, password, **extra_fields):
@@ -48,9 +49,8 @@ class CustomUser(AbstractUser, TimeStamp):
 class Address(TimeStamp):
     id = models.AutoField(primary_key=True)
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
-    city = models.CharField(max_length=255)
+    city = models.ForeignKey(City, on_delete=models.PROTECT)
     street = models.CharField(max_length=255)
-    country = models.CharField(max_length=255)
     building_no = models.SmallIntegerField()
     apartment_no = models.SmallIntegerField()
     default = models.BooleanField(default=False)

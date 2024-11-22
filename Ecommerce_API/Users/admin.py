@@ -5,9 +5,9 @@ from cart.admin import CartInline
 from products.admin import ProductInline
 
 class AddressAdmin(admin.ModelAdmin):
-    list_display = ('id', 'user', 'city', 'street', 'country', 'building_no', 'apartment_no')
-    list_filter = ('user', 'city', 'street', 'country', 'building_no', 'apartment_no')
-    search_fields = ('user', 'city', 'street', 'country', 'building_no', 'apartment_no')
+    list_display = ('id', 'user', 'city', 'street', 'building_no', 'apartment_no')
+    list_filter = ('user', 'city', 'street', 'building_no', 'apartment_no')
+    search_fields = ('user', 'city', 'street', 'building_no', 'apartment_no')
 
 class AddressInline(admin.TabularInline):
     model = Address

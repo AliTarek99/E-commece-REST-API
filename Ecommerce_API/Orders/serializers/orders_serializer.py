@@ -2,7 +2,7 @@ from rest_framework import serializers
 from shared.services.util import FileManagment
 from ..models import Orders, OrdersItems
 from orders.services import PaymobServices
-from users.serializers import AddressSerializer
+from users.serializers import AddressListSerializer
 from users.models import Address
 
 
@@ -31,13 +31,13 @@ class OrderItemsSerializer(serializers.ModelSerializer):
         ]
    
    
-class AddressSerializer(serializers.ModelSerializer):
+class AddressListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Address
         fields = ['id', 'city', 'street', 'country', 'building_no', 'apartment_no']
 
 class OrdersListSerializer(serializers.ModelSerializer):
-    address = AddressSerializer()
+    address = AddressListSerializer()
     class Meta:
         model = Orders
         fields = ['id', 'created_at', 'total_price', 'address', 'total_price', 'status']
@@ -83,7 +83,7 @@ class CreateOrderSerializer(serializers.Serializer):
     phone_number = serializers.CharField(max_length=20)
     first_name = serializers.CharField(max_length=255)
     last_name = serializers.CharField(max_length=255)
-    address = AddressSerializer(required=False)
+    address = AddressListSerializer(required=False)
     address_id = serializers.PrimaryKeyRelatedField(queryset=Address.objects.defer('created_at', 'updated_at') , required=False)
     use_default_address = serializers.BooleanField(required=False)
     

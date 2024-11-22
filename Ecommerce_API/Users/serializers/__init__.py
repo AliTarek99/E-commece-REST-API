@@ -1,1 +1,1 @@
-from .user_serializer import UserSerializer, AddressSerializer
+from .user_serializer import UserSerializer, AddressListSerializer, AddressSerializer

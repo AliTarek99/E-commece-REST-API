@@ -2,6 +2,7 @@ from ..models import CustomUser as User, Address
 from rest_framework import serializers
 from orders.services import PaymobServices
 from decouple import config
+from shipping.serializers import CitySerializer
 
 class UserSerializer(serializers.Serializer):
     id = serializers.IntegerField(required=False)
@@ -36,12 +37,19 @@ class UserSerializer(serializers.Serializer):
         return user
     
     
+class AddressListSerializer(serializers.ModelSerializer):
+    city = CitySerializer()
+    class Meta:
+        model = Address
+        fields = ['id', 'city', 'street', 'apartment_no', 'building_no', 'created_at', 'updated_at', 'default']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+        
+    
 class AddressSerializer(serializers.ModelSerializer):
     class Meta:
         model = Address
-        fields = ['id', 'city', 'street', 'country', 'apartment_no', 'building_no', 'created_at', 'updated_at', 'default']
-        read_only_fields = ['id', 'created_at', 'updated_at']
-        
+        fields = ['city', 'street', 'apartment_no', 'building_no', 'default']
+    
     def create(self, validated_data):
         if validated_data.get('default'):
             Address.objects.filter(user=self.context['request'].user, default=True).update(default=False)

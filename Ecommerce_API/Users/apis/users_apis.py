@@ -2,7 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView, CreateAPIView
 from rest_framework.response import Response
 from rest_framework import status
-from ..serializers import UserSerializer, AddressSerializer
+from ..serializers import UserSerializer, AddressListSerializer, AddressSerializer
 from ..models import CustomUser as User
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import AllowAny
@@ -39,11 +39,11 @@ class UserAPIs(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class UserAddressesListAPI(ListAPIView):
-    serializer_class = AddressSerializer
+    serializer_class = AddressListSerializer
 
     def get_queryset(self):
         user = self.request.user
-        return user.address_set.all()
+        return user.address_set.select_related('city', 'city__country').all()
     
 class UserAddressesAPIs(CreateAPIView):
     serializer_class = AddressSerializer
