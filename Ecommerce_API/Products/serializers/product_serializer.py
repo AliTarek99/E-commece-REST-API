@@ -45,6 +45,7 @@ class ProductVariantSerializer(serializers.ModelSerializer):
         fields = ['id', 'color', 'size', 'quantity', 'price']
     
 class InputProductSerializer(serializers.Serializer):
+    id = serializers.IntegerField(required=False)
     name = serializers.CharField(max_length=255)
     description = serializers.CharField(max_length=255)
     product_variants = ProductVariantSerializer(many=True, source='productvariant_set')

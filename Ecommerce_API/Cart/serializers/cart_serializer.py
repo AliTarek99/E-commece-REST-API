@@ -51,12 +51,13 @@ class OutputCartSerializer(serializers.ModelSerializer):
         fields = ['product_variant', 'quantity', 'images', 'product_id', 'product_name']
         
     def get_images(self, obj):
-        images = obj.get('images', [])
+        images = obj.product_variant.parent.productimages_set.all()
+        print(images)
         return [
             {
-                'color_id': img.get('color_id'),
-                'image': FileManagment.file_to_base64(img.get('url')),
-                'default': img.get('default', False)
+                'color_id': img.color_id,
+                'image': FileManagment.file_to_base64(img.url),
+                'default': img.default
             }
             for img in images
         ]
