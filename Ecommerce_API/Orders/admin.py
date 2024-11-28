@@ -1,5 +1,5 @@
 from django.contrib import admin
-from orders.models import Orders, OrdersItems
+from orders.models import Orders, OrdersItems, OrderCoupons
 
 class OrderItemInline(admin.TabularInline):
     model = OrdersItems
@@ -15,12 +15,17 @@ class OrderInline(admin.TabularInline):
     can_delete = False
     fields = ('id', 'user', 'created_at', 'total_price', 'address', 'status')
     
+class OrderCouponInline(admin.TabularInline):
+    model = OrderCoupons
+    extra = 0
+    fields = ('id', 'order', 'coupon')
+    
 class OrderAdmin(admin.ModelAdmin):
     list_display = ('id', 'user', 'created_at', 'total_price', 'address', 'status')
     list_filter = ('user', 'created_at', 'total_price', 'address', 'status')
     search_fields = ('user', 'created_at', 'address', 'status')
     ordering = ('user', 'created_at', 'total_price', 'status')
-    inlines = [OrderItemInline]
+    inlines = [OrderItemInline, OrderCouponInline]
     
     # Customizing display names within the admin panel
     def get_model_perms(self, request):

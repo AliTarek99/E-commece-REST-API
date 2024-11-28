@@ -3,6 +3,7 @@ from users.models import CustomUser, Address
 from orders.admin import OrderInline
 from cart.admin import CartInline
 from products.admin import ProductInline
+from coupons.admin import CouponUseInline
 
 class AddressAdmin(admin.ModelAdmin):
     list_display = ('id', 'user', 'city', 'street', 'building_no', 'apartment_no')
@@ -13,14 +14,14 @@ class AddressInline(admin.TabularInline):
     model = Address
     extra = 0
     readonly_fields = ('id', 'user')
-    fields = ('id', 'user', 'city', 'street', 'country', 'building_no', 'apartment_no')
+    fields = ('id', 'user', 'city', 'street', 'building_no', 'apartment_no')
 
 class CustomUserAdmin(admin.ModelAdmin):
     list_display = ('id', 'email', 'first_name', 'last_name', 'is_superuser')
     list_filter = ('is_superuser',)
     search_fields = ('id', 'email')
     ordering = ('id',)
-    inlines = [OrderInline, CartInline, ProductInline, AddressInline]
+    inlines = [OrderInline, CartInline, ProductInline, AddressInline, CouponUseInline]
     
     # Customizing display names within the admin panel
     def get_model_perms(self, request):

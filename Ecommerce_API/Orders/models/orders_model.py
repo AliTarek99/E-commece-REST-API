@@ -46,3 +46,10 @@ class OrdersItems(models.Model):
         unique_together = ('order', 'product_variant')
         db_table = 'orders_items'
 
+class OrderCoupons(models.Model):
+    id = None
+    order = models.ForeignKey(Orders, on_delete=models.CASCADE, related_name='order_coupons')
+    coupon = models.ForeignKey('coupons.Coupons', on_delete=models.PROTECT, related_name='coupon_orders')
+
+    class Meta:
+        unique_together = ('order', 'coupon')

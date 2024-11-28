@@ -1,5 +1,6 @@
 from django.contrib import admin
 from products.models import Product, ProductVariant, ProductImages, Colors, Sizes
+from coupons.admin import CouponProductInline
 
 class ColorInline(admin.TabularInline):
     model = Colors
@@ -92,7 +93,7 @@ class ProductAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'description', 'max_price', 'min_price', 'seller')
     list_filter = ('name', 'description', 'max_price', 'min_price', 'seller', )
     search_fields = ('name', 'price', 'seller', )
-    inlines = [ProductVariantInline, ProductImagesInline]
+    inlines = [ProductVariantInline, ProductImagesInline, CouponProductInline]
     
 admin.site.register(Product, ProductAdmin)
 admin.site.register(ProductVariant, ProductVariantAdmin)

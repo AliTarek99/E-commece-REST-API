@@ -1,1 +1,1 @@
-from .orders_model import Orders, OrdersItems
+from .orders_model import Orders, OrdersItems, OrderCoupons
