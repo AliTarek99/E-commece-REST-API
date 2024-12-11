@@ -8,6 +8,7 @@ class Orders(TimeStamp):
     user = models.ForeignKey('users.CustomUser', on_delete=models.SET_NULL, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     total_price = models.DecimalField(max_digits=7, decimal_places=2)
+    discount_price = models.DecimalField(max_digits=7, decimal_places=2)
     address = models.ForeignKey('users.Address', on_delete=models.PROTECT)
     paymob_response = models.JSONField(null=True)
     
@@ -34,6 +35,7 @@ class OrdersItems(models.Model):
     order = models.ForeignKey(Orders, on_delete=models.CASCADE, related_name='orders_items')
     product_variant = models.ForeignKey('products.ProductVariant', on_delete=models.SET_NULL, null=True)
     price = models.DecimalField(max_digits=7, decimal_places=2)
+    discount_price = models.DecimalField(max_digits=7, decimal_places=2)
     quantity = models.SmallIntegerField()
     seller = models.ForeignKey('users.CustomUser', on_delete=models.SET_NULL, null=True)
     name = models.CharField(max_length=255)
@@ -49,7 +51,7 @@ class OrdersItems(models.Model):
 class OrderCoupons(models.Model):
     id = None
     order = models.ForeignKey(Orders, on_delete=models.CASCADE, related_name='order_coupons')
-    coupon = models.ForeignKey('coupons.Coupons', on_delete=models.PROTECT, related_name='coupon_orders')
+    coupon = models.ForeignKey('coupons.Coupon', on_delete=models.PROTECT, related_name='coupon_orders')
 
     class Meta:
         unique_together = ('order', 'coupon')

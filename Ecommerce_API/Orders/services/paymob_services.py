@@ -9,7 +9,7 @@ class PaymobServices:
         try:
             headers = {"Authorization": f'Token {config("PAYMOB_SECRET_KEY")}', "Content-Type": 'application/json'}
             data = {
-                "amount": amount*100,
+                "amount": int(amount*100),
                 "currency": currency,
                 "expiration": 5800,
                 "payment_methods": [int(config("PAYMOB_CARD_INTEGRATION_ID"))],
@@ -23,7 +23,7 @@ class PaymobServices:
                     "apartment": biling_data.get('address').get('apartment_no'),
                     "country": biling_data.get('address').get('country'),
                 },
-                "metadata": {
+                "extras": {
                     "merchant_order_id": str(order_id),
                 },
                 "customer": {
@@ -34,6 +34,7 @@ class PaymobServices:
             }
             intention_data = requests.post(f'{config("PAYMOB_API_BASE_URL")}v1/intention/', json=data, headers=headers)
             intention_data = intention_data.json()
+            print(intention_data)
             if 'details' in intention_data:
                 raise Exception(intention_data['details'])
             return {'payment_url': f' https://accept.paymob.com/unifiedcheckout/?publicKey={config('PAYMOB_PUBLIC_KEY')}&clientSecret={intention_data['client_secret']}'}

@@ -39,7 +39,7 @@ class OrdersAPIs(APIView):
         try:
             order = OrdersServices.create_order(
                 request.user, 
-                address=serializer.validated_data.get('address')
+                address=serializer.validated_data.get('address'),
             )
             if not order:
                 return Response({'error': 'Order not created'}, status=status.HTTP_400_BAD_REQUEST)
@@ -54,6 +54,7 @@ class OrdersAPIs(APIView):
                 order_id=order.id,
             )
         except Exception as e:
+            print(e)
             OrdersServices.restore_items(order, user=request.user)
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         return Response(payment_url, status=status.HTTP_201_CREATED)

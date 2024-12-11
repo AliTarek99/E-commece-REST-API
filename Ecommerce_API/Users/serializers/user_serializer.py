@@ -3,6 +3,7 @@ from rest_framework import serializers
 from orders.services import PaymobServices
 from decouple import config
 from shipping.serializers import CitySerializer
+from cart.models import Cart
 
 class UserSerializer(serializers.Serializer):
     id = serializers.IntegerField(required=False)
@@ -27,6 +28,7 @@ class UserSerializer(serializers.Serializer):
         return value
     
     def create(self, validated_data):
+        Cart.objects.create(user=validated_data['user'])
         return User.objects.create_user(**validated_data)
     
     def update(self, user, validated_data):

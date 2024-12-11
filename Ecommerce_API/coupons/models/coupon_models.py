@@ -1,25 +1,25 @@
 from django.db import models
 
 
-class Coupons(models.Model):
+class Coupon(models.Model):
     code = models.CharField(max_length=8, unique=True)
     uses = models.BigIntegerField(default=0)
     seller = models.ForeignKey('users.CustomUser', on_delete=models.SET_NULL, null=True, blank=True)
     is_active = models.BooleanField(default=True)
     
     class Meta:
-        unique_together = (
-            ('seller_id', 'id'),
-            ('id', 'is_active')
-        )
+        indexes = [
+            models.Index(fields=['seller', 'code']),
+            models.Index(fields=['code', 'is_active'])
+        ]
         
     def __str__(self):
         return self.code
         
 
-class CouponProducts(models.Model):
+class CouponProduct(models.Model):
     id = None
-    coupon = models.ForeignKey(Coupons, on_delete=models.CASCADE)
+    coupon = models.ForeignKey(Coupon, on_delete=models.CASCADE, related_name='couponproduct')
     product = models.ForeignKey('products.Product', on_delete=models.CASCADE)
     
     class Meta:
@@ -30,7 +30,7 @@ class CouponProducts(models.Model):
         
 class CouponUse(models.Model):
     id = None
-    coupon = models.ForeignKey(Coupons, on_delete=models.CASCADE)
+    coupon = models.ForeignKey(Coupon, on_delete=models.CASCADE, related_name='couponuse')
     user = models.ForeignKey('users.CustomUser', on_delete=models.CASCADE)
     uses = models.SmallIntegerField(default=0)
     
@@ -40,7 +40,7 @@ class CouponUse(models.Model):
         )
         
 class CouponRule(models.Model):
-    coupon = models.OneToOneField(Coupons, on_delete=models.CASCADE)
+    coupon = models.OneToOneField(Coupon, on_delete=models.CASCADE)
     rule_value = models.FloatField(null=True, blank=True)
     max_uses = models.IntegerField(null=True, blank=True)
     max_uses_per_user = models.IntegerField(null=True, blank=True)

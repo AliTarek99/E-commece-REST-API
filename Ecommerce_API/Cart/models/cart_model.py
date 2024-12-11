@@ -2,17 +2,21 @@ from django.db import models
 from products.models import Sizes
 
 
-
 class Cart(models.Model):
-    user = models.ForeignKey('users.CustomUser', on_delete=models.CASCADE)
+    id = None
+    user = models.OneToOneField('users.CustomUser', on_delete=models.CASCADE, primary_key=True)
+    total_price = models.FloatField(default=0)
+    discount_price = models.FloatField(default=0)
+
+class CartItem(models.Model):
+    user = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name='cartitem')
     product_variant = models.ForeignKey('products.ProductVariant', on_delete=models.CASCADE)
+    discount_price = models.FloatField()
     quantity = models.IntegerField()
 
 
     class Meta:
         unique_together = ['user', 'product_variant']
-        verbose_name = 'Cart'
-        verbose_name_plural = 'Carts'
 
 
     def __str__(self):
@@ -20,3 +24,13 @@ class Cart(models.Model):
         for keys in self.__dict__:
             ret += f"{keys} : {self.__dict__[keys]} \n"
         return ret
+    
+    
+class CartCoupon(models.Model):
+    id = None
+    user = models.ForeignKey(Cart, on_delete=models.CASCADE)
+    coupon = models.ForeignKey('coupons.Coupon', on_delete=models.CASCADE, related_name='cartcoupon')
+    
+    class Meta:
+        unique_together = ['user', 'coupon']
+        

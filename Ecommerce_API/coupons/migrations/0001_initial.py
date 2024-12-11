@@ -24,9 +24,7 @@ class Migration(migrations.Migration):
                 ('is_active', models.BooleanField(default=True)),
                 ('seller', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to=settings.AUTH_USER_MODEL)),
             ],
-            options={
-                'unique_together': {('id', 'is_active'), ('seller_id', 'id')},
-            },
+            
         ),
         migrations.CreateModel(
             name='CouponRule',

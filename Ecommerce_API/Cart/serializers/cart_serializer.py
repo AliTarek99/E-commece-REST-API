@@ -1,14 +1,14 @@
 from rest_framework import serializers
 from products.models import ProductVariant
-from ..models import Cart
+from ..models import CartItem, Cart
 from shared.services import FileManagment
 
-class CartSerializer(serializers.ModelSerializer):
+class CartItemSerializer(serializers.ModelSerializer):
     user_id=serializers.IntegerField()
     
     class Meta:
-        model = Cart
-        fields = ['user_id', 'quantity']
+        model = CartItem
+        fields = ['user_id', 'quantity', 'discount_price']
 
 
     def validate(self, attrs):
@@ -28,7 +28,8 @@ class CartSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data['user'] = self.context.get('user')
         validated_data['product_variant'] = self.context.get('product_variant')
-        return Cart.objects.create(**validated_data)
+        validated_data['discount_price'] = self.context.get('product_variant').price
+        return CartItem.objects.create(**validated_data)
     
     def update(self, instance, validated_data):
         instance.quantity = validated_data.get('quantity', instance.quantity)
@@ -36,19 +37,23 @@ class CartSerializer(serializers.ModelSerializer):
         return instance
     
 class VariantItemSerializer(serializers.ModelSerializer):
+    
     class Meta:
         model = ProductVariant
-        fields = ['id', 'color_id', 'price', 'size_id']
+        fields = ['id', 'color_id', 'size_id']
+        
     
-class OutputCartSerializer(serializers.ModelSerializer):
+class OutputCartItemSerializer(serializers.ModelSerializer):
     images = serializers.SerializerMethodField()
     product_variant = VariantItemSerializer()
-    product_id = serializers.IntegerField(source='product_variant.parent_id', required=False)
+    price = serializers.DecimalField(max_digits=10, decimal_places=2, source='product_variant.price')
+    product_id = serializers.IntegerField(source='product_variant.parent_id', required=False) 
     product_name = serializers.CharField(source='product_variant.parent.name', required=False)
     
+    
     class Meta:
-        model = Cart
-        fields = ['product_variant', 'quantity', 'images', 'product_id', 'product_name']
+        model = CartItem
+        fields = ['product_variant', 'quantity', 'images', 'product_id', 'product_name', 'discount_price', 'price']
         
     def get_images(self, obj):
         images = obj.product_variant.parent.productimages_set.all()
@@ -61,3 +66,14 @@ class OutputCartSerializer(serializers.ModelSerializer):
             }
             for img in images
         ]
+        
+        
+class OutputCartSerializer(serializers.ModelSerializer):
+    items = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Cart
+        fields = ['total_price', 'discount_price', 'items']
+    
+    def get_items(self, obj):
+        return OutputCartItemSerializer(obj.user.cartitem_set.all(), many=True).data

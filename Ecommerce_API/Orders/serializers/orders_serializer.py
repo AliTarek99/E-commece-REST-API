@@ -12,7 +12,7 @@ class OrderItemsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrdersItems
-        fields = ['product_variant_id', 'price', 'seller', 'quantity', 'name', 'description', 'color', 'size', 'images']
+        fields = ['product_variant_id', 'price', 'discount_price', 'seller', 'quantity', 'name', 'description', 'color', 'size', 'images']
         
     def validate_quantity(self, value):
         if value < 0:
@@ -32,6 +32,7 @@ class OrderItemsSerializer(serializers.ModelSerializer):
    
    
 class AddressListSerializer(serializers.ModelSerializer):
+    country = serializers.CharField(source='city.country.name')
     class Meta:
         model = Address
         fields = ['id', 'city', 'street', 'country', 'building_no', 'apartment_no']
@@ -40,14 +41,14 @@ class OrdersListSerializer(serializers.ModelSerializer):
     address = AddressListSerializer()
     class Meta:
         model = Orders
-        fields = ['id', 'created_at', 'total_price', 'address', 'total_price', 'status']
+        fields = ['id', 'created_at', 'total_price', 'address', 'total_price', 'discount_price', 'status']
     
 class OrdersSerializer(OrdersListSerializer):
     user = serializers.PrimaryKeyRelatedField(read_only=True)
     orders_items = OrderItemsSerializer(many=True, required=False)
     class Meta:
         model = Orders
-        fields = ['id', 'created_at', 'total_price', 'address', 'total_price', 'status', 'user', 'orders_items']
+        fields = ['id', 'created_at', 'total_price', 'address', 'discount_price', 'status', 'user', 'orders_items']
 
     def validate_total_price(self, value):
         if value < 0:
