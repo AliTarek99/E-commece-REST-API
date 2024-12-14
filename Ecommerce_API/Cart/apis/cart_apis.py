@@ -24,16 +24,16 @@ class CartAPIs(APIView):
             return Response({'error': 'Quantity is required'}, status=status.HTTP_400_BAD_REQUEST)
         
         try:
-            cart_item = CartServices.add_product_to_cart(request)
+            response = CartServices.add_product_to_cart(request)
+            return Response(response, status=status.HTTP_201_CREATED)
         except Exception as e:
             return Response(str(e), status=e.status if hasattr(e, 'status') else status.HTTP_400_BAD_REQUEST)
 
         
-        return Response({'quantity': cart_item.validated_data['quantity']}, status=status.HTTP_201_CREATED)
 
     def delete(self, request, product_variant):
         try:
-            CartServices.delete_cart_item(request=request, product_variant=product_variant)
+            response = CartServices.delete_cart_item(request=request, product_variant=product_variant)
         except Exception as e:
             return Response(str(e), status=e.status if hasattr(e, 'status') else status.HTTP_400_BAD_REQUEST)
-        return Response('Product removed from cart', status=status.HTTP_200_OK)
+        return Response(response, status=status.HTTP_200_OK)

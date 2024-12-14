@@ -141,7 +141,7 @@ class InputProductSerializer(serializers.Serializer):
                 )
             variants = []
             images = []
-            # print(validated_data.get)
+            
             for variant in validated_data.get('productvariant_set', []):
                 variants.append(ProductVariant(color=variant['color'], size=variant['size'], parent=product, quantity=variant['quantity'], price=variant['price']))
             images = FileManagment.save_images(self.context.get('request'), validated_data.get('productimages_set'))

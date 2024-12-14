@@ -6,3 +6,4 @@ data
 media
 staticfiles
 static
+.vscode

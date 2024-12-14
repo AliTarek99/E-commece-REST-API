@@ -28,8 +28,9 @@ class CartItem(models.Model):
     
 class CartCoupon(models.Model):
     id = None
-    user = models.ForeignKey(Cart, on_delete=models.CASCADE)
+    user = models.ForeignKey(Cart, on_delete=models.CASCADE , related_name='cartcoupon')
     coupon = models.ForeignKey('coupons.Coupon', on_delete=models.CASCADE, related_name='cartcoupon')
+    primary_key = False 
     
     class Meta:
         unique_together = ['user', 'coupon']

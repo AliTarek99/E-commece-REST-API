@@ -34,7 +34,6 @@ class PaymobServices:
             }
             intention_data = requests.post(f'{config("PAYMOB_API_BASE_URL")}v1/intention/', json=data, headers=headers)
             intention_data = intention_data.json()
-            print(intention_data)
             if 'details' in intention_data:
                 raise Exception(intention_data['details'])
             return {'payment_url': f' https://accept.paymob.com/unifiedcheckout/?publicKey={config('PAYMOB_PUBLIC_KEY')}&clientSecret={intention_data['client_secret']}'}

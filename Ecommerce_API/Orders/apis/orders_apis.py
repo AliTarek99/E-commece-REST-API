@@ -44,10 +44,15 @@ class OrdersAPIs(APIView):
             if not order:
                 return Response({'error': 'Order not created'}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({'error': str(e)}, status= e.status_code if hasattr(e, 'status_code') else status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {
+                    'error': str(e), 
+                    'expired_coupons': e.expired_coupons if hasattr(e, 'expired_coupons') else None,
+                }, status= e.status if hasattr(e, 'status') else status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
         try:
             payment_url = PaymobServices.create_intention(
-                amount=order.total_price, 
+                amount=order.discount_price, 
                 currency='EGP', 
                 biling_data=serializer.data, 
                 customer_data=request.user, 

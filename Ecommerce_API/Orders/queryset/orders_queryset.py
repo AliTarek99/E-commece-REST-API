@@ -57,8 +57,8 @@ class ReportQueryset():
     
 class CreateOrderQueryset():
     @classmethod
-    def get_cart_items(cls, user):
-        return CartItem.objects.filter(user=user).only(
+    def get_cart_items(cls, cart):
+        return CartItem.objects.filter(user=cart).only(
                 'user_id',  
                 'quantity', 
                 'product_variant',

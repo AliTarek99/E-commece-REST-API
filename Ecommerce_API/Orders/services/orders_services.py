@@ -1,50 +1,60 @@
 from ..models import Orders, OrdersItems
-from cart.models import CartItem, Cart
+from cart.models import CartItem, Cart, CartCoupon
 from django.db import transaction
 from products.models import ProductVariant
 from rest_framework import status
 from orders.queryset import CreateOrderQueryset
-from coupons.models import CouponRule
 from orders.models import OrderCoupons
-import json
+from coupons.services import CouponServices
+from django.db.models import Prefetch
 
 class OrdersServices:
     @classmethod
-    def create_order(self, user, address, coupons=None):
+    def create_order(self, user, address):
         
         try:
-            cartItems = CreateOrderQueryset.get_cart_items(user)
-            cart = Cart.objects.filter(user=user).first()
+            cart = Cart.objects.filter(user=user).prefetch_related(Prefetch('cartcoupon', queryset=CartCoupon.objects.select_related('coupon'))).first()
+            cartItems = CreateOrderQueryset.get_cart_items(cart)
             if len(list(cartItems)) == 0:
                 return None
 
             total_price = sum([item.product_variant.price * item.quantity for item in cartItems])
             
+            result = CouponServices.calculate_discount_price(user, cart)
+            if len(result['expired_coupons']):
+                cart.discount_price = result['discount_price']
+                cart.save()
+                error = Exception('Expired Coupons')
+                error.expired_coupons = result['expired_coupons']
+                error.status = status.HTTP_400_BAD_REQUEST
+                raise error
+        
             with transaction.atomic():
-                
-                order = Orders.objects.create(user=user, total_price=total_price, discount_price=cart.discount_price, address=address)
+                order = Orders.objects.create(user=user, total_price=total_price, discount_price=result['discount_price'], address=address)
                 
                 order_items = {}
                 variants = []
                 coupon_order_relations = []
-                for cp in coupons.values() if coupons else []:
-                    if isinstance(cp, dict):
-                        for c in cp.values():
-                            coupon_order_relations.append(OrderCoupons(coupon_id=c['id'], order_id=order.id))
-                    else:
-                        for c in cp:
-                            coupon_order_relations.append(OrderCoupons(coupon_id=c['id'], order_id=order.id))
-                            
+                codes = []
+                for cp in cart.cartcoupon.all():
+                    codes.append(cp.coupon.code)
+                    coupon_order_relations.append(OrderCoupons(coupon_id=cp.coupon.id, order_id=order.id))
+                    
                 OrderCoupons.objects.bulk_create(coupon_order_relations, batch_size=500, ignore_conflicts=True)
 
                 OrderServicesHelpers.create_order_items_objects(cartItems, order, order_items, variants)
                 OrderServicesHelpers.update_product_variant_quantity(variants, order_items, user)
 
                 OrdersItems.objects.bulk_create(order_items.values())
-                CartItem.objects.filter(user=user).delete()
+                CartItem.objects.filter(user=cart).delete()
+                CouponServices.use_coupons(user, codes)
+                CartCoupon.objects.filter(user=cart).delete()
+                cart.total_price = 0
+                cart.discount_price = 0
+                cart.save(update_fields=['total_price', 'discount_price'])
                 return order
         except Exception as e:
-            if hasattr(e, 'status_code'):
+            if hasattr(e, 'status'):
                 raise e
             else:
                 print(e)
@@ -53,6 +63,15 @@ class OrdersServices:
     @classmethod
     def restore_items(cls, order, user):
         with transaction.atomic():
+            coupons = order.ordercoupons.select_related('coupon').all()
+            cart_coupon = []
+            codes = []
+            for coupon in coupons:
+                codes.append(coupon.coupon.code)
+                cart_coupon.append(CartCoupon(coupon=coupon.coupon, user=user))
+                
+            CartCoupon.objects.bulk_create(cart_coupon, batch_size=500, ignore_conflicts=True)
+            CouponServices.unuse_coupons(user, codes)
             cls.return_items_to_cart(user=user, order=order)
             cls.return_items_to_stock(order)
             order.delete()
@@ -83,7 +102,7 @@ class OrdersServices:
     def return_order(cls, user, order_id):
         try:
             with transaction.atomic():
-                order = Orders.objects.filter(id=order_id, user=user).select_for_update().first()
+                order = Orders.objects.filter(id=order_id, user=user).select_related('coupon').select_for_update().first()
                 if not order:
                     error = Exception('Order not found')
                     error.status = status.HTTP_404_NOT_FOUND
@@ -96,6 +115,8 @@ class OrdersServices:
                 order.save(update_fields=['status'])
                 
                 cls.return_items_to_stock(order)
+                
+                CouponServices.unuse_coupons(user, order.ordercoupons.all().values_list('coupon__code', flat=True))
         except Exception as e:
             if hasattr(e, 'status'):
                 raise e
@@ -121,7 +142,7 @@ class OrdersServices:
     def cancel_order(self, user, order_id):
         try:
             with transaction.atomic():
-                order = Orders.objects.filter(id=order_id, user=user).select_for_update().first()
+                order = Orders.objects.filter(id=order_id, user=user).select_related('coupon').select_for_update().first()
                 if not order:
                     error = Exception('Order not found')
                     error.status = status.HTTP_404_NOT_FOUND
@@ -132,6 +153,8 @@ class OrdersServices:
                     raise error
                 order.status = Orders.CANCELLED
                 order.save(update_fields=['status'])
+                
+                CouponServices.unuse_coupons(user, order.ordercoupons.all().values_list('coupon__code', flat=True))
         except Exception as e:
             if hasattr(e, 'status'):
                 raise e
@@ -157,6 +180,7 @@ class OrdersServices:
                 )
             )
         CartItem.objects.bulk_create(cart_items, batch_size=500)
+        CouponServices.calculate_discount_price(user, cart_items)
         
         
 
@@ -190,75 +214,7 @@ class OrderServicesHelpers:
                     quantity=product.quantity + order_items.get(f'{product.id}').quantity
                 )
                 e = Exception("Not enough items in stock!")
-                e.status_code = 400
+                e.status = 400
                 raise e
         ProductVariant.objects.bulk_update(products, ['quantity'], batch_size=500)
-        
-    @classmethod
-    def calculate_discount_price(cls, user, cart):
-        cartItems = cart.cartitem.all()
-        total_price = cart.total_price
-        coupons = CreateOrderQueryset.get_coupons(user, total_price, cart)
-        coupon_types = coupons['coupons']
-        codes = set(coupons['codes']) 
-        
-        expired_coupons = []
-        
-        coupons = {}
-        for t in coupon_types:
-            coupons[t['couponrule__coupon_type']] = t['coupons']
-            if t['couponrule__coupon_type'] == CouponRule.COUPON_TYPE_PRODUCT:
-                c = {}
-                for cp in coupons[t['couponrule__coupon_type']]:
-                    c[cp['product_id']] = cp
-                coupons[t['couponrule__coupon_type']] = c
-            if t['couponrule__coupon_type'] == CouponRule.COUPON_TYPE_SELLER:
-                c = {}
-                for cp in coupons[t['couponrule__coupon_type']]:
-                    c[cp['seller_id']] = cp
-                coupons[t['couponrule__coupon_type']] = c
-        
-        total_price = 0
-        for i, item in enumerate(cartItems): 
-            # Product Coupons
-            coupon = coupons.get(CouponRule.COUPON_TYPE_PRODUCT)
-            if coupon and coupon.get(item.product_variant.parent_id):
-                coupon = coupon.get(item.product_variant.parent_id)
-                coupon['uses'] = coupon.get('uses', 0) + item.quantity
-                if coupon['discount_type'] == CouponRule.DISCOUNT_TYPE_FIXED:
-                    cartItems[i].product_variant.price = max(item.product_variant.price - coupon['discount_value'], 0)
-                elif coupon['discount_type'] == CouponRule.DISCOUNT_TYPE_PERCENTAGE:
-                    cartItems[i].product_variant.price =  item.product_variant.price - min(
-                        (item.product_variant.price * (float(cp['discount_value'])/100)), 
-                        cp.get('discount_limit') or 9999999
-                    )
-                codes.remove(coupon['code'])
-            
-            # Seller Coupons
-            coupon = coupons.get(CouponRule.COUPON_TYPE_SELLER)
-            if coupon and coupon.get(item.product_variant.seller_id):
-                coupon = coupon.get(item.product_variant.seller_id)
-                coupon['uses'] = coupon.get('uses', 0) + item.quantity
-                if coupon['rule_type'] == CouponRule.RULE_TYPE_MIN_PRODUCT_PRICE and item.product_variant.price < coupon['rule_value']:
-                    continue
-                if coupon['discount_type'] == CouponRule.DISCOUNT_TYPE_FIXED:
-                    cartItems[i].product_variant.price = max(item.product_variant.price - coupon['discount_value'], 0)
-                elif coupon['discount_type'] == CouponRule.DISCOUNT_TYPE_PERCENTAGE:
-                    cartItems[i].product_variant.price =  item.product_variant.price - min(
-                        (item.product_variant.price * (float(cp['discount_value'])/100)), 
-                        cp.get('discount_limit') or 9999999
-                    )
-                codes.remove(coupon['code'])
-            
-            total_price += item.product_variant.price * item.quantity
-            
-        # Apply order coupons
-        for cp in coupons.get(CouponRule.COUPON_TYPE_ORDER, []):
-            if cp['discount_type'] == CouponRule.DISCOUNT_TYPE_FIXED:
-                total_price = max(total_price - cp['discount_value'], 0)
-            elif cp['discount_type'] == CouponRule.DISCOUNT_TYPE_PERCENTAGE:
-                total_price -= min((total_price * (float(cp['discount_value'])/100)), cp.get('discount_limit') or 9999999)
-            codes.remove(cp['code'])
-                
-        return {'discount_price': total_price, 'expired_coupons': list(codes)}
         

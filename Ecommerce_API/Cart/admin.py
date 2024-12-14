@@ -4,9 +4,8 @@ from django.contrib import admin
 class CartItemInline(admin.TabularInline):
     model = CartItem
     extra = 0
-    readonly_fields = ('user', 'product_variant', 'quantity', 'discount_price')
-    can_delete = False
-    fields = ('user', 'product_variant', 'quantity')
+    readonly_fields = ('user', 'product_variant', 'discount_price')
+    fields = ('user', 'product_variant', 'quantity', 'discount_price')
     
 class CartItemAdmin(admin.ModelAdmin):
     list_display = ('user', 'product_variant', 'quantity', 'discount_price')

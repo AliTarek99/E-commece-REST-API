@@ -23,7 +23,7 @@ class CouponCheckSerializer(serializers.Serializer):
                 queryset=CartCoupon.objects.filter(user_id=self.context['request'].user.id)
             )
         ).first()
-        # print(coupon.couponrule.__dict__)
+        
         coupon = self.coupon
         
         if not coupon:

@@ -1,5 +1,5 @@
 from django.db.models import F, Prefetch
-from cart.models import CartItem, Cart
+from cart.models import CartItem, Cart, CartCoupon
 from products.models import ProductImages
 
 class CartQueryset:
@@ -7,7 +7,7 @@ class CartQueryset:
     def get_cart(cls, user):
         cart = Cart.objects.filter(user=user).prefetch_related(
             Prefetch(
-                'user__cartitem_set',
+                'cartitem',
                 queryset=CartItem.objects.prefetch_related(
                     Prefetch(
                         'product_variant__parent__productimages_set', 
@@ -20,18 +20,22 @@ class CartQueryset:
                 ).select_related(
                     'product_variant',
                     'product_variant__parent'
-                )
+                ).distinct()
             ),
-            'user__cartcoupon_set'
+            Prefetch( 
+                'cartcoupon',
+                queryset=CartCoupon.objects.select_related('coupon')
+            )
         ).only( 
-            'user__cartitem__product_variant__price', 
-            'user__cartitem__product_variant__color_id',
-            'user__cartitem__product_variant__size_id', 
-            'user__cartitem__quantity',
-            'user__cartitem__product_variant__parent_id',
-            'user__cartitem__product_variant__parent__name',
+            'cartcoupon__coupon__code',
+            'cartitem__product_variant__price', 
+            'cartitem__product_variant__color_id',
+            'cartitem__product_variant__size_id', 
+            'cartitem__quantity',
+            'cartitem__product_variant__parent_id',
+            'cartitem__product_variant__parent__name',
             'user_id',
-            'user__cartitem__discount_price',
+            'cartitem__discount_price',
             'discount_price',
             'total_price'
         )
