@@ -9,14 +9,14 @@ class Cart(models.Model):
     discount_price = models.FloatField(default=0)
 
 class CartItem(models.Model):
-    user = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name='cartitem')
+    cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name='cartitem')
     product_variant = models.ForeignKey('products.ProductVariant', on_delete=models.CASCADE)
     discount_price = models.FloatField()
     quantity = models.IntegerField()
 
 
     class Meta:
-        unique_together = ['user', 'product_variant']
+        unique_together = ['cart', 'product_variant']
 
 
     def __str__(self):
@@ -28,10 +28,10 @@ class CartItem(models.Model):
     
 class CartCoupon(models.Model):
     id = None
-    user = models.ForeignKey(Cart, on_delete=models.CASCADE , related_name='cartcoupon')
+    cart = models.ForeignKey(Cart, on_delete=models.CASCADE , related_name='cartcoupon')
     coupon = models.ForeignKey('coupons.Coupon', on_delete=models.CASCADE, related_name='cartcoupon')
     primary_key = False 
     
     class Meta:
-        unique_together = ['user', 'coupon']
+        unique_together = ['cart', 'coupon']
         

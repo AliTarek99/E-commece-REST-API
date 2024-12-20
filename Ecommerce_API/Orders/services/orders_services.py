@@ -6,7 +6,8 @@ from rest_framework import status
 from orders.queryset import CreateOrderQueryset
 from orders.models import OrderCoupons
 from coupons.services import CouponServices
-from django.db.models import Prefetch
+from django.db.models import Prefetch, F
+from coupons.models import CouponUse, Coupon
 
 class OrdersServices:
     @classmethod
@@ -40,15 +41,15 @@ class OrdersServices:
                     codes.append(cp.coupon.code)
                     coupon_order_relations.append(OrderCoupons(coupon_id=cp.coupon.id, order_id=order.id))
                     
+                
                 OrderCoupons.objects.bulk_create(coupon_order_relations, batch_size=500, ignore_conflicts=True)
 
                 OrderServicesHelpers.create_order_items_objects(cartItems, order, order_items, variants)
                 OrderServicesHelpers.update_product_variant_quantity(variants, order_items, user)
-
                 OrdersItems.objects.bulk_create(order_items.values())
-                CartItem.objects.filter(user=cart).delete()
+                CartItem.objects.filter(cart=cart).delete()
                 CouponServices.use_coupons(user, codes)
-                CartCoupon.objects.filter(user=cart).delete()
+                CartCoupon.objects.filter(cart=cart).delete()
                 cart.total_price = 0
                 cart.discount_price = 0
                 cart.save(update_fields=['total_price', 'discount_price'])
@@ -68,7 +69,7 @@ class OrdersServices:
             codes = []
             for coupon in coupons:
                 codes.append(coupon.coupon.code)
-                cart_coupon.append(CartCoupon(coupon=coupon.coupon, user=user))
+                cart_coupon.append(CartCoupon(coupon=coupon.coupon, cart=user.cart))
                 
             CartCoupon.objects.bulk_create(cart_coupon, batch_size=500, ignore_conflicts=True)
             CouponServices.unuse_coupons(user, codes)
@@ -86,7 +87,7 @@ class OrdersServices:
                 raise error
             
             with transaction.atomic():
-                CartItem.objects.filter(user=user).delete()
+                CartItem.objects.filter(cart_id=user.id).delete()
                 cls.return_items_to_cart(order, user)
                 
         except Exception as e:
@@ -174,7 +175,7 @@ class OrdersServices:
                 continue
             cart_items.append(
                 CartItem(
-                    user=user, 
+                    cart=user.id, 
                     product_variant=item.product_variant, 
                     quantity=min(item.quantity, item.product_variant.quantity)
                 )
@@ -210,7 +211,7 @@ class OrderServicesHelpers:
         for product in products:
             product.quantity = product.quantity - order_items.get(f'{product.id}').quantity
             if product.quantity < 0:
-                CartItem.objects.filter(user_id=user.id, product_variant_id=product.id).update(
+                CartItem.objects.filter(cart_id=user.id, product_variant_id=product.id).update(
                     quantity=product.quantity + order_items.get(f'{product.id}').quantity
                 )
                 e = Exception("Not enough items in stock!")

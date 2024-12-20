@@ -4,15 +4,15 @@ from django.contrib import admin
 class CartItemInline(admin.TabularInline):
     model = CartItem
     extra = 0
-    readonly_fields = ('user', 'product_variant', 'discount_price')
-    fields = ('user', 'product_variant', 'quantity', 'discount_price')
+    readonly_fields = ('cart', 'product_variant', 'discount_price')
+    fields = ('cart', 'product_variant', 'quantity', 'discount_price')
     
 class CartItemAdmin(admin.ModelAdmin):
-    list_display = ('user', 'product_variant', 'quantity', 'discount_price')
-    list_filter = ('user', 'product_variant', 'quantity')
-    search_fields = ('user', 'product_variant')
-    ordering = ('user', 'product_variant', 'discount_price')
-    search_fields = ('user', 'product_variant')
+    list_display = ('cart', 'product_variant', 'quantity', 'discount_price')
+    list_filter = ('cart', 'product_variant', 'quantity')
+    search_fields = ('cart', 'product_variant')
+    ordering = ('cart', 'product_variant', 'discount_price')
+    search_fields = ('cart', 'product_variant')
     
     # Customizing display names within the admin panel
     def get_model_perms(self, request):

@@ -58,8 +58,8 @@ class ReportQueryset():
 class CreateOrderQueryset():
     @classmethod
     def get_cart_items(cls, cart):
-        return CartItem.objects.filter(user=cart).only(
-                'user_id',  
+        return CartItem.objects.filter(cart=cart).only(
+                'cart_id',  
                 'quantity', 
                 'product_variant',
                 'discount_price'
@@ -88,7 +88,7 @@ class CreateOrderQueryset():
             
     @classmethod
     def get_coupons(cls, user, total_price, cart):
-        codes = CartCoupon.objects.filter(user=cart).select_related('coupon').values_list('coupon__code', flat=True)
+        codes = CartCoupon.objects.filter(cart=cart).select_related('coupon').values_list('coupon__code', flat=True)
         coupons = Coupon.objects.filter(
             code__in=codes,
             is_active=True,

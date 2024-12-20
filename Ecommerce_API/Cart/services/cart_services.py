@@ -6,6 +6,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.db.models import F
 from coupons.services import CouponServices
+from coupons.models import CouponRule
 
 class CartServices():
     @classmethod
@@ -20,36 +21,24 @@ class CartServices():
             with transaction.atomic():
                 # lock the cart item
                 cart_product = CartItem.objects.select_for_update().filter(
-                    user=cart, 
+                    cart=cart, 
                     product_variant=request.data['product_variant']
                 ).first()
                 
                 #get coupons that apply to this product
                 coupons = CartCoupon.objects.filter(
-                    user=cart, 
+                    cart=cart, 
                     coupon__couponproduct__product=product.parent,
                     coupon__is_active=True,
                     coupon__couponrule__expires_at__gte=timezone.now(),
                     coupon__couponrule__max_uses_per_user__lt=F('coupon__couponuse__uses')
                 ).select_related('coupon__couponrule', 'coupon')
-
-                #calculate discount price
-                discount_price = product.price
-                for coupon in coupons:
-                    if coupon.coupon.couponrule.type == 'percentage':
-                        discount_price = discount_price - min(
-                            (coupon.coupon.couponrule.discount_value * discount_price / 100), 
-                            coupon.coupon.couponrule.discount_limit if coupon.coupon.couponrule.discount_limit else 999999
-                        )
-                    else:
-                        discount_price = max(discount_price - coupon.coupon.couponrule.discount_value, 0)
-                
-                
+                        
                 # update cart item if it exists
                 serializer = CartItemSerializer(cart_product, data={
-                        'user': cart.user_id,
+                        'cart': cart.user_id,
                         'quantity': request.data['quantity'] + (cart_product.quantity if cart_product else 0),
-                        'discount_price': discount_price
+                        'discount_price': product.price
                     }, context={'user': request.user, 'product_variant': product}
                 )
                 
@@ -67,6 +56,12 @@ class CartServices():
                 cart.discount_price = result['discount_price']
                 cart.save(update_fields=['discount_price', 'total_price'])
                 
+                discount_price = 0
+                for item in result['items_prices']:
+                    print
+                    if item['id'] == product.id:
+                        discount_price = item['discount_price']
+                        break
                 
                 return {
                     'discount_price': cart.discount_price,
@@ -87,7 +82,7 @@ class CartServices():
     @classmethod
     def delete_cart_item(cls, request, product_variant):
         cart_product = CartItem.objects.filter(
-            user=request.user.id, 
+            cart_id=request.user.id, 
             product_variant_id=product_variant
         ).select_related('product_variant__parent', 'product_variant').only(
             'user_id',
@@ -111,9 +106,9 @@ class CartServices():
             cart_product.delete()
             # remove unused coupons
             unused_coupons = CartCoupon.objects.filter(
-                user=request.user
+                cart=cart
             ).exclude(
-                coupon__couponproduct__product__productvariant__cartitem__user=request.user
+                coupon__couponproduct__product__productvariant__cartitem__cart=cart
             )
             
             # get sellers that have products in cart

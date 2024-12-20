@@ -20,7 +20,7 @@ class CouponCheckSerializer(serializers.Serializer):
             'couponproduct',
             Prefetch(
                 'cartcoupon',
-                queryset=CartCoupon.objects.filter(user_id=self.context['request'].user.id)
+                queryset=CartCoupon.objects.filter(cart_id=self.context['request'].user.id)
             )
         ).first()
         
@@ -43,11 +43,11 @@ class CouponCheckSerializer(serializers.Serializer):
             raise serializers.ValidationError('Used coupon')
         
         if coupon.couponrule.coupon_type == CouponRule.COUPON_TYPE_SELLER and \
-            CartItem.objects.filter(user=self.context['request'].user, product_variant__parent__seller=coupon.seller).exists():
+            CartItem.objects.filter(cart_id=self.context['request'].user.id, product_variant__parent__seller=coupon.seller).exists():
             raise serializers.ValidationError('No product in cart for the applied coupon')
         
         if coupon.couponrule.coupon_type == CouponRule.COUPON_TYPE_PRODUCT and \
-            not CartItem.objects.filter(user=self.context['request'].user, product_variant__parent__in=coupon.couponproduct.product_id).exists():
+            not CartItem.objects.filter(cart_id=self.context['request'].user.id, product_variant__parent__in=[coupon_product.id for coupon_product in coupon.couponproduct.all()]).exists():
             raise serializers.ValidationError('No product in cart for the applied coupon')
             
         
