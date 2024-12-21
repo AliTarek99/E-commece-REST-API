@@ -3,6 +3,7 @@ from coupons.models import Coupon, CouponUse, CouponRule
 from django.utils.timezone import now
 from django.db.models import Prefetch
 from cart.models import CartItem, CartCoupon
+import constants
 
 class CouponCheckSerializer(serializers.Serializer):
     code = serializers.CharField(max_length=8)
@@ -42,11 +43,11 @@ class CouponCheckSerializer(serializers.Serializer):
         if (user_coupon_use.uses if user_coupon_use else 0) >= coupon.couponrule.max_uses_per_user:
             raise serializers.ValidationError('Used coupon')
         
-        if coupon.couponrule.coupon_type == CouponRule.COUPON_TYPE_SELLER and \
+        if coupon.couponrule.coupon_type == constants.COUPON_TYPE_SELLER and \
             CartItem.objects.filter(cart_id=self.context['request'].user.id, product_variant__parent__seller=coupon.seller).exists():
             raise serializers.ValidationError('No product in cart for the applied coupon')
         
-        if coupon.couponrule.coupon_type == CouponRule.COUPON_TYPE_PRODUCT and \
+        if coupon.couponrule.coupon_type == constants.COUPON_TYPE_PRODUCT and \
             not CartItem.objects.filter(cart_id=self.context['request'].user.id, product_variant__parent__in=[coupon_product.id for coupon_product in coupon.couponproduct.all()]).exists():
             raise serializers.ValidationError('No product in cart for the applied coupon')
             

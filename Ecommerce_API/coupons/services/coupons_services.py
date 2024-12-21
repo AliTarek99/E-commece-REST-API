@@ -1,8 +1,9 @@
-from coupons.models import CouponRule, Coupon, CouponUse
+from coupons.models import Coupon, CouponUse
 from cart.models import CartItem, Cart, CartCoupon
 from django.db import transaction
 from django.db.models import F
 from orders.queryset import CreateOrderQueryset
+import constants
 
 class CouponServices():
     @classmethod
@@ -58,12 +59,12 @@ class CouponServices():
         coupons = {}
         for t in coupon_types:
             coupons[t['couponrule__coupon_type']] = t['coupons']
-            if t['couponrule__coupon_type'] == CouponRule.COUPON_TYPE_PRODUCT:
+            if t['couponrule__coupon_type'] == constants.COUPON_TYPE_PRODUCT:
                 c = {}
                 for cp in coupons[t['couponrule__coupon_type']]:
                     c[cp['product_id']] = cp
                 coupons[t['couponrule__coupon_type']] = c
-            if t['couponrule__coupon_type'] == CouponRule.COUPON_TYPE_SELLER:
+            if t['couponrule__coupon_type'] == constants.COUPON_TYPE_SELLER:
                 c = {}
                 for cp in coupons[t['couponrule__coupon_type']]:
                     c[cp['seller_id']] = cp
@@ -72,12 +73,12 @@ class CouponServices():
         discount_price = 0
         for i, item in enumerate(cartItems): 
             # Product Coupons
-            coupon = coupons.get(CouponRule.COUPON_TYPE_PRODUCT)
+            coupon = coupons.get(constants.COUPON_TYPE_PRODUCT)
             if coupon and coupon.get(item.product_variant.parent_id):
                 coupon = coupon.get(item.product_variant.parent_id)
-                if coupon['discount_type'] == CouponRule.DISCOUNT_TYPE_FIXED:
+                if coupon['discount_type'] == constants.DISCOUNT_TYPE_FIXED:
                     cartItems[i].discount_price = max(item.discount_price - coupon['discount_value'], 0)
-                elif coupon['discount_type'] == CouponRule.DISCOUNT_TYPE_PERCENTAGE:
+                elif coupon['discount_type'] == constants.DISCOUNT_TYPE_PERCENTAGE:
                     cartItems[i].discount_price =  max(item.discount_price - min(
                         (item.product_variant.price * (float(cp['discount_value'])/100)), 
                         cp.get('discount_limit') or 9999999
@@ -85,14 +86,14 @@ class CouponServices():
                 codes.remove(coupon['code'])
             
             # Seller Coupons
-            coupon = coupons.get(CouponRule.COUPON_TYPE_SELLER)
+            coupon = coupons.get(constants.COUPON_TYPE_SELLER)
             if coupon and coupon.get(item.product_variant.seller_id):
                 coupon = coupon.get(item.product_variant.seller_id)
-                if coupon['rule_type'] == CouponRule.RULE_TYPE_MIN_PRODUCT_PRICE and item.product_variant.price < coupon['rule_value']:
+                if coupon['minimum_required_value'] and item.product_variant.price < coupon['minimum_required_value']:
                     continue
-                if coupon['discount_type'] == CouponRule.DISCOUNT_TYPE_FIXED:
+                if coupon['discount_type'] == constants.DISCOUNT_TYPE_FIXED:
                     cartItems[i].discount_price = max(item.discount_price - coupon['discount_value'], 0)
-                elif coupon['discount_type'] == CouponRule.DISCOUNT_TYPE_PERCENTAGE:
+                elif coupon['discount_type'] == constants.DISCOUNT_TYPE_PERCENTAGE:
                     cartItems[i].discount_price =  max(item.discount_price - min(
                         (item.product_variant.price * (float(cp['discount_value'])/100)), 
                         cp.get('discount_limit') or 9999999
@@ -102,10 +103,10 @@ class CouponServices():
         
         CartItem.objects.bulk_update(cartItems, ['discount_price'])
         # Apply order coupons
-        for cp in coupons.get(CouponRule.COUPON_TYPE_ORDER, []):
-            if cp['discount_type'] == CouponRule.DISCOUNT_TYPE_FIXED:
+        for cp in coupons.get(constants.COUPON_TYPE_ORDER, []):
+            if cp['discount_type'] == constants.DISCOUNT_TYPE_FIXED:
                 discount_price = max(discount_price - cp['discount_value'], 0)
-            elif cp['discount_type'] == CouponRule.DISCOUNT_TYPE_PERCENTAGE:
+            elif cp['discount_type'] == constants.DISCOUNT_TYPE_PERCENTAGE:
                 discount_price -= min((discount_price * (float(cp['discount_value'])/100)), cp.get('discount_limit') or 9999999)
             codes.remove(cp['code'])
         

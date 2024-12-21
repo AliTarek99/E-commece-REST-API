@@ -4,11 +4,12 @@ from django.db.models.functions import TruncWeek
 from django.db import connection, transaction
 from django.contrib.postgres.fields import JSONField, CITextField
 from cart.models import CartItem, CartCoupon
-from products.models import ProductVariant, ProductImages
+from products.models import ProductImages
 from django.db.models.functions import Coalesce
 from django.contrib.postgres.aggregates import JSONBAgg
-from coupons.models import Coupon, CouponRule
+from coupons.models import Coupon
 from django.utils.timezone import now
+import constants
 
 
 class ReportQueryset():
@@ -99,10 +100,10 @@ class CreateOrderQueryset():
             Q(couponuse__uses__isnull=True) | Q(couponuse__uses__lt=Coalesce(F('couponrule__max_uses_per_user'), 999999999))
         ).filter(
             (
-                Q(couponrule__coupon_type=CouponRule.COUPON_TYPE_ORDER) & 
-                Q(couponrule__rule_type=CouponRule.RULE_TYPE_MIN_ORDER_TOTAL_PRICE) & 
-                Q(couponrule__rule_value__lte=total_price)
-            ) | Q(couponrule__rule_type__isnull=True) | Q(couponrule__rule_type=CouponRule.RULE_TYPE_MIN_PRODUCT_PRICE)
+                Q(couponrule__coupon_type=constants.COUPON_TYPE_ORDER) & 
+                Q(couponrule__minimum_required_value_gt=0) & 
+                Q(couponrule__minimum_required_value__lte=total_price)
+            ) | Q(couponrule__minimum_required_value=0)
         ).distinct().prefetch_related(
             'couponuse',
             'couponproduct'
@@ -114,8 +115,7 @@ class CreateOrderQueryset():
                     Value('product_id'), F('couponproduct__product_id'),
                     Value('discount_type'), F('couponrule__discount_type'),
                     Value('discount_value'), F('couponrule__discount_value'),
-                    Value('rule_type'), F('couponrule__rule_type'),
-                    Value('rule_value'), F('couponrule__rule_value'),
+                    Value('minimum_required_value'), F('couponrule__minimum_required_value'),
                     Value('discount_limit'), F('couponrule__discount_limit'),
                     Value('seller_id'), F('seller_id'),
                     function='jsonb_build_object'
