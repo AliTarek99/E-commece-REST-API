@@ -7,6 +7,7 @@ class PaymobServices:
     @classmethod
     def create_intention(cls, amount, currency, biling_data, customer_data, order_id):
         try:
+            print(order_id)
             headers = {"Authorization": f'Token {config("PAYMOB_SECRET_KEY")}', "Content-Type": 'application/json'}
             data = {
                 "amount": int(amount*100),
@@ -24,7 +25,7 @@ class PaymobServices:
                     "country": biling_data.get('address').get('country'),
                 },
                 "extras": {
-                    "merchant_order_id": str(order_id),
+                    "store_order_id": order_id
                 },
                 "customer": {
                     "email": customer_data.email,
@@ -42,29 +43,29 @@ class PaymobServices:
             raise Exception('Something went wrong')
     
     @classmethod
-    def verify_hmac(cls, hmac, request):
+    def verify_hmac(cls, recieved_hmac, request):
         obj = request.data.get('obj')
-        concatenated_data = f"""{obj.get('amount_cents')}
-            {obj.get('created_at')}
-            {obj.get('currency')}
-            {obj.get('error_occured')}
-            {obj.get('has_parent_transaction')}
-            {obj.get('id')}
-            {obj.get('integration_id')}
-            {obj.get('is_3d_secure')}
-            {obj.get('is_auth')}
-            {obj.get('is_capture')}
-            {obj.get('is_refunded')}
-            {obj.get('is_standalone_payment')}
-            {obj.get('is_voided')}
-            {obj.get('order').get('id')}
-            {obj.get('owner')}
-            {obj.get('pending')}
-            {obj.get('source_data').get('pan')}
-            {obj.get('source_data').get('sub_type')}
-            {obj.get('source_data').get('type')}
-            {obj.get('success')}"""
-            
-        hashed_data = hmac.new(config('PAYMOB_HMAC_SECRET'), concatenated_data.encode('utf-8'), hashlib.sha512).hexdigest()
-        
-        return hmac == hashed_data
+        concatenated_data = f"{obj.get('amount_cents')}"\
+            f"{obj.get('created_at')}"\
+            f"{obj.get('currency')}"\
+            f"{"true" if obj.get('error_occured') else "false"}"\
+            f"{"true" if obj.get('has_parent_transaction') else "false"}"\
+            f"{obj.get('id')}"\
+            f"{obj.get('integration_id')}"\
+            f"{"true" if obj.get('is_3d_secure') else "false"}"\
+            f"{"true" if obj.get('is_auth') else "false"}"\
+            f"{"true" if obj.get('is_capture') else "false"}"\
+            f"{"true" if obj.get('is_refunded') else "false"}"\
+            f"{"true" if obj.get('is_standalone_payment') else "false"}"\
+            f"{"true" if obj.get('is_voided') else "false"}"\
+            f"{obj.get('order').get('id')}"\
+            f"{obj.get('owner')}"\
+            f"{"true" if obj.get('pending') else "false"}"\
+            f"{obj.get('source_data').get('pan')}"\
+            f"{obj.get('source_data').get('sub_type')}"\
+            f"{obj.get('source_data').get('type')}"\
+            f"{"true" if obj.get('success') else "false"}"
+        print(concatenated_data)
+        hashed_data = hmac.new(config('PAYMOB_HMAC_SECRET').encode('utf-8'), concatenated_data.encode('utf-8'), hashlib.sha512).hexdigest()
+        print(recieved_hmac, hashed_data)
+        return recieved_hmac == hashed_data

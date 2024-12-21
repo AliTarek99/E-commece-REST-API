@@ -57,26 +57,26 @@ class OrdersSerializer(OrdersListSerializer):
         
 class PaymobCallbackSerializer(serializers.Serializer):
     hmac = serializers.CharField(max_length=255)
-    merchant_order_id = serializers.CharField(max_length=255)
+    store_order_id = serializers.CharField(max_length=255)
+    order = None
     
     def validate_hmac(self, value):
         if not PaymobServices.verify_hmac(value, self.context['request']):
             raise serializers.ValidationError("Invalid HMAC.")
         return value
     
-    def validate_merchant_order_id(self, value):
+    def validate_store_order_id(self, value):
         try:
-            order = Orders.objects.get(merchant_order_id=value)
-            value = order
+            self.order = Orders.objects.get(id=value)
         except Orders.DoesNotExist:
             raise serializers.ValidationError("Order does not exist.")
         return value
     
-    def upadte(self, instance, validated_data):
-        validated_data.get('merchant_order_id').status = Orders.PAID
-        validated_data.get('merchant_order_id').paymob_response = self.context['request'].data
-        validated_data.get('merchant_order_id').save()
-        return validated_data.get('merchant_order_id')
+    def update(self, instance, validated_data):
+        self.order.status = Orders.PAID
+        self.order.paymob_response = self.context['request'].data
+        self.order.save()
+        return self.order
     
 
 class CreateOrderSerializer(serializers.Serializer):

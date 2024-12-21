@@ -75,30 +75,28 @@ class CouponServices():
             coupon = coupons.get(CouponRule.COUPON_TYPE_PRODUCT)
             if coupon and coupon.get(item.product_variant.parent_id):
                 coupon = coupon.get(item.product_variant.parent_id)
-                coupon['uses'] = coupon.get('uses', 0) + item.quantity
                 if coupon['discount_type'] == CouponRule.DISCOUNT_TYPE_FIXED:
                     cartItems[i].discount_price = max(item.discount_price - coupon['discount_value'], 0)
                 elif coupon['discount_type'] == CouponRule.DISCOUNT_TYPE_PERCENTAGE:
-                    cartItems[i].discount_price =  item.discount_price - min(
+                    cartItems[i].discount_price =  max(item.discount_price - min(
                         (item.product_variant.price * (float(cp['discount_value'])/100)), 
                         cp.get('discount_limit') or 9999999
-                    )
+                    ), 0)
                 codes.remove(coupon['code'])
             
             # Seller Coupons
             coupon = coupons.get(CouponRule.COUPON_TYPE_SELLER)
             if coupon and coupon.get(item.product_variant.seller_id):
                 coupon = coupon.get(item.product_variant.seller_id)
-                coupon['uses'] = coupon.get('uses', 0) + item.quantity
                 if coupon['rule_type'] == CouponRule.RULE_TYPE_MIN_PRODUCT_PRICE and item.product_variant.price < coupon['rule_value']:
                     continue
                 if coupon['discount_type'] == CouponRule.DISCOUNT_TYPE_FIXED:
                     cartItems[i].discount_price = max(item.discount_price - coupon['discount_value'], 0)
                 elif coupon['discount_type'] == CouponRule.DISCOUNT_TYPE_PERCENTAGE:
-                    cartItems[i].discount_price =  item.discount_price - min(
+                    cartItems[i].discount_price =  max(item.discount_price - min(
                         (item.product_variant.price * (float(cp['discount_value'])/100)), 
                         cp.get('discount_limit') or 9999999
-                    )
+                    ), 0)
                 codes.remove(coupon['code'])
             discount_price += item.discount_price * item.quantity
         

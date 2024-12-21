@@ -32,7 +32,7 @@ class GetOrderDetailsAPIs(RetrieveAPIView):
 
 
 class OrdersAPIs(APIView):
-
+    
     def post(self, request):
         serializer = CreateOrderSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
@@ -105,14 +105,18 @@ class CancelOrderAPI(APIView):
     
     
 class PaymentCallbackAPIs(APIView):
+    permission_classes = []
+    authentication_classes = []
+    
     def post(self, request):
-        # serializer = PaymobCallbackSerializer(data=request.data, context={'request': request})
-        # serializer.is_valid(raise_exception=True)
-        print('in callback', request.data)
-        if request.data.get('success'):
-            # serializer.update()
-            return Response(status=status.HTTP_200_OK)
+        serializer = PaymobCallbackSerializer(data={
+            'hmac': request.query_params.get('hmac'),
+            'store_order_id': request.data.get('obj').get('payment_key_claims').get('extra').get('store_order_id'),
+        }, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        
+        if request.data.get('obj').get('success'):
+            serializer.update(serializer.order, serializer.validated_data)
         else:
-            # after validation merchant_order_id field contains the whole order not just the id
-            # OrdersServices.restore_items(serializer.data.get('merchant_order_id'))
-            return Response(status=status.HTTP_200_OK)
+            OrdersServices.restore_items(serializer.order, user=serializer.order.user)
+        return Response(status=status.HTTP_200_OK)

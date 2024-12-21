@@ -1,7 +1,9 @@
 
 services:
   db:
-    image: postgres
+    build: 
+      context: .
+      dockerfile: PostgresDockerfile
     environment:
       POSTGRES_DB: ecommerce
       POSTGRES_USER: app
@@ -36,6 +38,8 @@ services:
     container_name: ngrok
     volumes:
       - ./ngrok_config/ngrok.yml:/ngrok.yml
+    environment:
+      - NGROK_AUTHTOKEN=2n4ONsudYEep1MocZoSdUrdWXwH_7n3kEV89tj5mzo6ySUVzJ
     command:
       - "start"
       - "--all"
