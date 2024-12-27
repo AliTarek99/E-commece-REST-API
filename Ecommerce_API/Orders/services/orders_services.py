@@ -6,8 +6,9 @@ from rest_framework import status
 from orders.queryset import CreateOrderQueryset
 from orders.models import OrderCoupons
 from coupons.services import CouponServices
-from django.db.models import Prefetch, F
-from coupons.models import CouponUse, Coupon
+from django.db.models import Prefetch
+
+
 
 class OrdersServices:
     @classmethod
@@ -43,16 +44,30 @@ class OrdersServices:
                     
                 
                 OrderCoupons.objects.bulk_create(coupon_order_relations, batch_size=500, ignore_conflicts=True)
-
-                OrderServicesHelpers.create_order_items_objects(cartItems, order, order_items, variants)
+                
+                # Decrease stock
                 OrderServicesHelpers.update_product_variant_quantity(variants, order_items, user)
+
+                # Add orderItems objects
+                OrderServicesHelpers.create_order_items_objects(cartItems, order, order_items, variants)
+                
+                # Add order items to database
                 OrdersItems.objects.bulk_create(order_items.values())
+                
+                # Empty the cart
                 CartItem.objects.filter(cart=cart).delete()
+                
+                # Update Coupon Uses
                 CouponServices.use_coupons(user, codes)
+                
+                # delete cart coupons
                 CartCoupon.objects.filter(cart=cart).delete()
                 cart.total_price = 0
                 cart.discount_price = 0
+                
+                # Save cart changes
                 cart.save(update_fields=['total_price', 'discount_price'])
+                
                 return order
         except Exception as e:
             if hasattr(e, 'status'):
@@ -64,7 +79,7 @@ class OrdersServices:
     @classmethod
     def restore_items(cls, order, user):
         with transaction.atomic():
-            coupons = order.ordercoupons.select_related('coupon').all()
+            coupons = order.order_coupons.select_related('coupon').all()
             cart_coupon = []
             codes = []
             for coupon in coupons:
@@ -169,19 +184,21 @@ class OrdersServices:
     def return_items_to_cart(self, order, user):
         order_items = OrdersItems.objects.filter(order=order).only('product_variant', 'quantity').select_related('product_variant')
         cart_items = []
+        cart = Cart.objects.filter(user=user).first()
                     
         for item in order_items:
             if item.product_variant is None:
                 continue
             cart_items.append(
                 CartItem(
-                    cart=user.id, 
+                    cart=cart, 
                     product_variant=item.product_variant, 
-                    quantity=min(item.quantity, item.product_variant.quantity)
+                    quantity=min(item.quantity, item.product_variant.quantity),
+                    discount_price=item.discount_price
                 )
             )
         CartItem.objects.bulk_create(cart_items, batch_size=500)
-        CouponServices.calculate_discount_price(user, cart_items)
+        CouponServices.calculate_discount_price(user, cart)
         
         
 

@@ -48,7 +48,7 @@ class OrdersSerializer(OrdersListSerializer):
     orders_items = OrderItemsSerializer(many=True, required=False)
     class Meta:
         model = Orders
-        fields = ['id', 'created_at', 'total_price', 'address', 'discount_price', 'status', 'user', 'orders_items']
+        fields = ['id', 'created_at', 'total_price', 'address', 'discount_price', 'status', 'user', 'orders_items', 'payment_link']
 
     def validate_total_price(self, value):
         if value < 0:

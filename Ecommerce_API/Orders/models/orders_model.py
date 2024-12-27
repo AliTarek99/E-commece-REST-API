@@ -11,6 +11,7 @@ class Orders(TimeStamp):
     discount_price = models.DecimalField(max_digits=7, decimal_places=2)
     address = models.ForeignKey('users.Address', on_delete=models.PROTECT)
     paymob_response = models.JSONField(null=True)
+    payment_link = models.CharField(null=True)
     
     PENDING = 0
     PAID = 1
@@ -18,6 +19,7 @@ class Orders(TimeStamp):
     DELIVERED = 3
     RETURNED = 4
     CANCELLED = 5
+    FAILED = 6
 
     STATUS_CHOICES = [
         (PENDING, 'Pending'),
@@ -26,6 +28,7 @@ class Orders(TimeStamp):
         (DELIVERED, 'Delivered'),
         (RETURNED, 'Returned'),
         (CANCELLED, 'Cancelled'),
+        (FAILED, 'Payment Failed')
     ]
 
     status = models.SmallIntegerField(choices=STATUS_CHOICES, default=PENDING)

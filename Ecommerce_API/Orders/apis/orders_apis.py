@@ -56,7 +56,8 @@ class OrdersAPIs(APIView):
                 currency='EGP', 
                 biling_data=serializer.data, 
                 customer_data=request.user, 
-                order_id=order.id,
+                order=order,
+                user=request.user
             )
         except Exception as e:
             print(e)
@@ -118,5 +119,8 @@ class PaymentCallbackAPIs(APIView):
         if request.data.get('obj').get('success'):
             serializer.update(serializer.order, serializer.validated_data)
         else:
+            print('failed')
+            serializer.order.status = Orders.FAILED
+            serializer.order.save()
             OrdersServices.restore_items(serializer.order, user=serializer.order.user)
         return Response(status=status.HTTP_200_OK)

@@ -2,17 +2,18 @@ import requests
 from django.conf import settings
 from decouple import config
 import hashlib, hmac
+import constants
+from orders.tasks import update_pending_order
 
 class PaymobServices:
     @classmethod
-    def create_intention(cls, amount, currency, biling_data, customer_data, order_id):
+    def create_intention(cls, amount, currency, biling_data, customer_data, order, user):
         try:
-            print(order_id)
             headers = {"Authorization": f'Token {config("PAYMOB_SECRET_KEY")}', "Content-Type": 'application/json'}
             data = {
                 "amount": int(amount*100),
                 "currency": currency,
-                "expiration": 5800,
+                "expiration": constants.PAYMENT_EXPIRY,
                 "payment_methods": [int(config("PAYMOB_CARD_INTEGRATION_ID"))],
                 "billing_data": {
                     "email": biling_data.get('email'),
@@ -25,7 +26,7 @@ class PaymobServices:
                     "country": biling_data.get('address').get('country'),
                 },
                 "extras": {
-                    "store_order_id": order_id
+                    "store_order_id": order.id
                 },
                 "customer": {
                     "email": customer_data.email,
@@ -37,10 +38,17 @@ class PaymobServices:
             intention_data = intention_data.json()
             if 'details' in intention_data:
                 raise Exception(intention_data['details'])
-            return {'payment_url': f' https://accept.paymob.com/unifiedcheckout/?publicKey={config('PAYMOB_PUBLIC_KEY')}&clientSecret={intention_data['client_secret']}'}
+            
+            # Add to redis the payment link expiry time
+            update_pending_order.apply_async(args=(order.id, user.id), countdown=constants.PAYMENT_EXPIRY)
+            
+            order.payment_link = f' https://accept.paymob.com/unifiedcheckout/?publicKey={config('PAYMOB_PUBLIC_KEY')}&clientSecret={intention_data['client_secret']}'
+            order.save()
+            return {'payment_url': order.payment_link}
         except Exception as e:
             print(e)
             raise Exception('Something went wrong')
+    
     
     @classmethod
     def verify_hmac(cls, recieved_hmac, request):

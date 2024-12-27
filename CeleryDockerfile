@@ -1,0 +1,22 @@
+# Base Image
+FROM python:3.12
+
+# Set working directory
+WORKDIR /app
+
+# Copy project files
+COPY . /app
+
+# Install dependencies
+RUN pip install -r requirements.txt
+
+WORKDIR /app/Ecommerce_API
+
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    DJANGO_SETTINGS_MODULE=Ecommerce_API.settings \
+    CELERY_BROKER_URL=redis://redis:6379
+
+# Default command for Celery worker
+CMD ["celery", "-A", "Ecommerce_API", "worker", "--loglevel=info"]

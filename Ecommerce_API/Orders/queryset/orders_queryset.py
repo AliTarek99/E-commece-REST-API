@@ -101,7 +101,7 @@ class CreateOrderQueryset():
         ).filter(
             (
                 Q(couponrule__coupon_type=constants.COUPON_TYPE_ORDER) & 
-                Q(couponrule__minimum_required_value_gt=0) & 
+                Q(couponrule__minimum_required_value__gt=0) & 
                 Q(couponrule__minimum_required_value__lte=total_price)
             ) | Q(couponrule__minimum_required_value=0)
         ).distinct().prefetch_related(

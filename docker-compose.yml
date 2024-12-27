@@ -53,6 +53,29 @@ services:
     networks:
       - Ecommerce_network
 
+  redis:
+    image: redis:7.4.1
+    ports:
+      - "6379:6379"
+    networks:
+      - Ecommerce_network
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: CeleryDockerfile
+    # command: celery -A Ecommerce_API.Ecommerce_API worker --loglevel=debug
+    volumes:
+      - .:/app
+    env_file:
+      - ./Ecommerce_API/.env
+    # environment:
+      # DJANGO_SETTINGS_MODULE: Ecommerce_API.Ecommerce_API.settings
+    depends_on:
+      - redis
+    networks:
+      - Ecommerce_network
+
 
 networks:
   Ecommerce_network:
