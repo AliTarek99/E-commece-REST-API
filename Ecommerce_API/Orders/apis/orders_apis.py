@@ -3,9 +3,11 @@ from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.response import Response
 from rest_framework import status
 from ..models import Orders
-from ..serializers import OrdersSerializer, PaymobCallbackSerializer, CreateOrderSerializer, OrdersListSerializer
+from ..serializers import OrdersSerializer, PaymobCallbackSerializer, CreateOrderSerializer, OrdersListSerializer, ReturnOrderRequestSerializer
 from orders.services import PaymobServices, OrdersServices
 from orders.queryset import ReportQueryset
+import constants
+from rest_framework.permissions import IsAdminUser
 
 
 class GetOrdersListAPIs(ListAPIView):
@@ -86,10 +88,11 @@ class ReorderAPI(APIView):
     
 class ReturnOrderAPI(APIView):
     def post(self, request):
-        if not request.data.get('order_id'):
-            return Response({'error': 'Order ID is required'}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = ReturnOrderRequestSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        
         try:
-            OrdersServices.return_order(request.user, request.data.get('order_id'))
+            OrdersServices.return_order_items(request.user, serializer.validated_data.get('order'), serializer.validated_data.get('items'))
         except Exception as e:
             return Response({'error': str(e)}, status=e.status if hasattr(e, 'status') else status.HTTP_500_INTERNAL_SERVER_ERROR)
         return Response(status=status.HTTP_200_OK)
@@ -100,6 +103,19 @@ class CancelOrderAPI(APIView):
             return Response({'error': 'Order ID is required'}, status=status.HTTP_400_BAD_REQUEST)
         try:
             OrdersServices.cancel_order(request.user, request.data.get('order_id'))
+        except Exception as e:
+            return Response({'error': str(e)}, status=e.status if hasattr(e, 'status') else status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(status=status.HTTP_200_OK)
+    
+
+class ReturnRequestDecisionAPI(APIView):
+    permission_classes = [IsAdminUser]
+    
+    def post(self, request):
+        if not request.data.get('request_id') or not request.data.get('status'):
+            return Response({'error': 'Return ID and status are required'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            OrdersServices.return_request_decision(request.user, request.data.get('return_id'), request.data.get('status'))
         except Exception as e:
             return Response({'error': str(e)}, status=e.status if hasattr(e, 'status') else status.HTTP_500_INTERNAL_SERVER_ERROR)
         return Response(status=status.HTTP_200_OK)
@@ -120,7 +136,7 @@ class PaymentCallbackAPIs(APIView):
             serializer.update(serializer.order, serializer.validated_data)
         else:
             print('failed')
-            serializer.order.status = Orders.FAILED
+            serializer.order.status = constants.ORDER_FAILED
             serializer.order.save()
             OrdersServices.restore_items(serializer.order, user=serializer.order.user)
         return Response(status=status.HTTP_200_OK)

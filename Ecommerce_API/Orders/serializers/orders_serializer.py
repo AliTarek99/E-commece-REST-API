@@ -1,9 +1,13 @@
 from rest_framework import serializers
 from shared.services.util import FileManagment
-from ..models import Orders, OrdersItems
+from ..models import Orders, OrdersItems, ReturnRequest
 from orders.services import PaymobServices
 from users.serializers import AddressListSerializer
 from users.models import Address
+import constants
+from orders.models import ReturnItem
+from django.db import models
+
 
 
     
@@ -66,14 +70,13 @@ class PaymobCallbackSerializer(serializers.Serializer):
         return value
     
     def validate_store_order_id(self, value):
-        try:
-            self.order = Orders.objects.get(id=value)
-        except Orders.DoesNotExist:
+        self.order = Orders.objects.filter(id=value).first()
+        if not self.order:
             raise serializers.ValidationError("Order does not exist.")
         return value
     
     def update(self, instance, validated_data):
-        self.order.status = Orders.PAID
+        self.order.status = constants.ORDER_PAID
         self.order.paymob_response = self.context['request'].data
         self.order.save()
         return self.order
@@ -108,3 +111,50 @@ class CreateOrderSerializer(serializers.Serializer):
         if not value.user == self.context['request'].user:
             raise serializers.ValidationError("Address does not belong to user.")
         return value
+    
+
+class ReturnOrderItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrdersItems
+        fields = ['product_variant', 'quantity']
+        
+    def validate_id(self, value):
+        if not value:
+            raise serializers.ValidationError("Order item id is required.")
+        return value
+
+
+class ReturnOrderRequestSerializer(serializers.ModelSerializer):
+    items = ReturnOrderItemSerializer(many=True, required=True)
+    
+    class Meta:
+        model = ReturnRequest
+        fields = ['order', 'reason', 'items']
+        
+    def validate(self, attrs):
+        order = attrs.get('order')
+        items = attrs.get('items')
+        
+        if order.status != constants.ORDER_DELIVERED:
+            raise serializers.ValidationError("Order must be delivered to request a return.")
+        
+        for item in items:
+            product_variant = item['product_variant']
+            quantity = item['quantity']
+            
+            # Get the total quantity of this product variant in the order
+            order_item = OrdersItems.objects.filter(order=order, product_variant=product_variant).first()
+            if not order_item:
+                raise serializers.ValidationError(f"Product variant {product_variant.id} not found in the order.")
+            
+            # Get the total quantity of this product variant in existing return requests
+            existing_return_quantity = ReturnItem.objects.filter(
+                return_request__order=order,
+                product_variant=product_variant
+            ).aggregate(total_quantity=models.Sum('quantity'))['total_quantity'] or 0
+            
+            # Check if the sum of existing return requests and the new request exceeds the quantity in the order
+            if existing_return_quantity + quantity > order_item.quantity:
+                raise serializers.ValidationError(f"Total return quantity for product variant {product_variant.id} exceeds the quantity in the order.")
+        
+        return attrs

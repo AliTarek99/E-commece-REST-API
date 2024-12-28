@@ -7,12 +7,14 @@ from orders.queryset import CreateOrderQueryset
 from orders.models import OrderCoupons
 from coupons.services import CouponServices
 from django.db.models import Prefetch
+import constants
+from orders.models import ReturnItem, ReturnRequest
 
 
 
 class OrdersServices:
     @classmethod
-    def create_order(self, user, address):
+    def create_order(cls, user, address):
         
         try:
             cart = Cart.objects.filter(user=user).prefetch_related(Prefetch('cartcoupon', queryset=CartCoupon.objects.select_related('coupon'))).first()
@@ -115,24 +117,14 @@ class OrdersServices:
                 raise error
             
     @classmethod
-    def return_order(cls, user, order_id):
+    def return_order_items(cls, user, order, items, reason):
         try:
             with transaction.atomic():
-                order = Orders.objects.filter(id=order_id, user=user).select_related('coupon').select_for_update().first()
-                if not order:
-                    error = Exception('Order not found')
-                    error.status = status.HTTP_404_NOT_FOUND
-                    raise error
-                if order.status != Orders.DELIVERED:
-                    error = Exception('Order is not delivered yet')
-                    error.status = status.HTTP_400_BAD_REQUEST
-                    raise error
-                order.status = Orders.RETURNED
-                order.save(update_fields=['status'])
-                
-                cls.return_items_to_stock(order)
-                
-                CouponServices.unuse_coupons(user, order.ordercoupons.all().values_list('coupon__code', flat=True))
+                request = ReturnRequest.objects.create(order=order, user=user, reason=reason)
+                return_items = []
+                for item in items:
+                    return_items.append(ReturnItem(return_request=request, product_variant=item['product_variant'], quantity=item['quantity']))
+                ReturnItem.objects.bulk_create(return_items, batch_size=500)
         except Exception as e:
             if hasattr(e, 'status'):
                 raise e
@@ -143,7 +135,7 @@ class OrdersServices:
                 raise error
           
     @classmethod
-    def return_items_to_stock(self, order):
+    def return_items_to_stock(cls, order):
         order_items = OrdersItems.objects.filter(order=order).select_related('product_variant').all()
         variants_to_update = []
         for item in order_items:
@@ -155,7 +147,7 @@ class OrdersServices:
         ProductVariant.objects.bulk_update(variants_to_update, ['quantity'], batch_size=500)
         
     @classmethod
-    def cancel_order(self, user, order_id):
+    def cancel_order(cls, user, order_id):
         try:
             with transaction.atomic():
                 order = Orders.objects.filter(id=order_id, user=user).select_related('coupon').select_for_update().first()
@@ -163,11 +155,11 @@ class OrdersServices:
                     error = Exception('Order not found')
                     error.status = status.HTTP_404_NOT_FOUND
                     raise error
-                if order.status >= Orders.SHIPPED:
+                if order.status >= constants.ORDER_SHIPPED:
                     error = Exception(f'Order is already {order.STATUS_CHOICES[order.status][1]}')
                     error.status = status.HTTP_400_BAD_REQUEST
                     raise error
-                order.status = Orders.CANCELLED
+                order.status = constants.ORDER_CANCELLED
                 order.save(update_fields=['status'])
                 
                 CouponServices.unuse_coupons(user, order.ordercoupons.all().values_list('coupon__code', flat=True))
@@ -181,7 +173,7 @@ class OrdersServices:
                 raise error
     
     @classmethod
-    def return_items_to_cart(self, order, user):
+    def return_items_to_cart(cls, order, user):
         order_items = OrdersItems.objects.filter(order=order).only('product_variant', 'quantity').select_related('product_variant')
         cart_items = []
         cart = Cart.objects.filter(user=user).first()
@@ -199,6 +191,34 @@ class OrdersServices:
             )
         CartItem.objects.bulk_create(cart_items, batch_size=500)
         CouponServices.calculate_discount_price(user, cart)
+    
+    @classmethod
+    def return_request_decision(cls, request_id, decision):
+        try:
+            with transaction.atomic():
+                request = ReturnRequest.objects.filter(id=request_id, status=constants.RETURN_CHECKING_PACKAGE).select_related('order').select_for_update().first()
+                if not request:
+                    error = Exception('Return request not found')
+                    error.status = status.HTTP_404_NOT_FOUND
+                    raise error
+                if decision == constants.RETURN_APPROVED:
+                    request.status = constants.RETURN_APPROVED
+                    request.save(update_fields=['status'])
+                    request.order.status = constants.ORDER_RETURNED
+                    request.order.save(update_fields=['status'])
+                    cls.return_items_to_stock(request.order)
+                    CouponServices.unuse_coupons(request.user, request.order.order_coupons.all().values_list('coupon__code', flat=True))
+                else:
+                    request.status = constants.RETURN_REJECTED
+                    request.save(update_fields=['status'])
+        except Exception as e:
+            if hasattr(e, 'status'):
+                raise e
+            else:
+                error = Exception('Something went wrong')
+                error.status = status.HTTP_500_INTERNAL_SERVER_ERROR
+                print("Error while processing return request:", e)
+                raise error
         
         
 
