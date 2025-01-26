@@ -1,5 +1,5 @@
 from rest_framework.views import APIView
-from rest_framework.generics import ListAPIView, RetrieveAPIView
+from rest_framework.generics import ListAPIView, RetrieveAPIView, CreateAPIView
 from rest_framework.response import Response
 from rest_framework import status
 from ..models import Orders
@@ -8,6 +8,7 @@ from orders.services import PaymobServices, OrdersServices
 from orders.queryset import ReportQueryset
 import constants
 from rest_framework.permissions import IsAdminUser
+from orders.tasks import update_pending_order
 
 
 class GetOrdersListAPIs(ListAPIView):
@@ -61,6 +62,8 @@ class OrdersAPIs(APIView):
                 order=order,
                 user=request.user
             )
+            # Add to redis the payment link expiry time
+            update_pending_order.apply_async(args=(order.id, request.user.id), countdown=constants.PAYMENT_EXPIRY)
         except Exception as e:
             print(e)
             OrdersServices.restore_items(order, user=request.user)
@@ -92,7 +95,8 @@ class ReturnOrderAPI(APIView):
         serializer.is_valid(raise_exception=True)
         
         try:
-            OrdersServices.return_order_items(request.user, serializer.validated_data.get('order'), serializer.validated_data.get('items'))
+            print(serializer.validated_data['items'][0]['price'])
+            OrdersServices.return_order_items(request.user, serializer.validated_data.get('order'), serializer.validated_data.get('items'), serializer.validated_data['reason'])
         except Exception as e:
             return Response({'error': str(e)}, status=e.status if hasattr(e, 'status') else status.HTTP_500_INTERNAL_SERVER_ERROR)
         return Response(status=status.HTTP_200_OK)
@@ -115,7 +119,7 @@ class ReturnRequestDecisionAPI(APIView):
         if not request.data.get('request_id') or not request.data.get('status'):
             return Response({'error': 'Return ID and status are required'}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            OrdersServices.return_request_decision(request.user, request.data.get('return_id'), request.data.get('status'))
+            OrdersServices.return_request_decision(request.data.get('request_id'), request.data.get('status'))
         except Exception as e:
             return Response({'error': str(e)}, status=e.status if hasattr(e, 'status') else status.HTTP_500_INTERNAL_SERVER_ERROR)
         return Response(status=status.HTTP_200_OK)

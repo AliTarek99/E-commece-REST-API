@@ -3,11 +3,11 @@ from django.conf import settings
 from decouple import config
 import hashlib, hmac
 import constants
-from orders.tasks import update_pending_order
+import json
 
 class PaymobServices:
     @classmethod
-    def create_intention(cls, amount, currency, biling_data, customer_data, order, user):
+    def create_intention(cls, amount, currency, biling_data, customer_data, order):
         try:
             headers = {"Authorization": f'Token {config("PAYMOB_SECRET_KEY")}', "Content-Type": 'application/json'}
             data = {
@@ -38,9 +38,6 @@ class PaymobServices:
             intention_data = intention_data.json()
             if 'details' in intention_data:
                 raise Exception(intention_data['details'])
-            
-            # Add to redis the payment link expiry time
-            update_pending_order.apply_async(args=(order.id, user.id), countdown=constants.PAYMENT_EXPIRY)
             
             order.payment_link = f' https://accept.paymob.com/unifiedcheckout/?publicKey={config('PAYMOB_PUBLIC_KEY')}&clientSecret={intention_data['client_secret']}'
             order.save()
@@ -73,7 +70,20 @@ class PaymobServices:
             f"{obj.get('source_data').get('sub_type')}"\
             f"{obj.get('source_data').get('type')}"\
             f"{"true" if obj.get('success') else "false"}"
-        print(concatenated_data)
         hashed_data = hmac.new(config('PAYMOB_HMAC_SECRET').encode('utf-8'), concatenated_data.encode('utf-8'), hashlib.sha512).hexdigest()
-        print(recieved_hmac, hashed_data)
         return recieved_hmac == hashed_data
+    
+    
+    @classmethod
+    def refund_payment(cls, amount, order):
+        try:
+            headers = {"Authorization": f'Token {config("PAYMOB_SECRET_KEY")}', "Content-Type": 'application/json'}
+            data = {
+                "amount_cents": int(amount*100),
+                "transaction_id": order.paymob_response['obj']['id'],
+            }
+        ############################################ not working ############################################
+            response = requests.post(f'{config("PAYMOB_API_BASE_URL")}api/acceptance/void_refund/refund', json=data, headers=headers)
+        except Exception as e:
+            print(e)
+            raise Exception('Something went wrong')

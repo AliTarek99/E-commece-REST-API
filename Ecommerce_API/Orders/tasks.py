@@ -1,8 +1,8 @@
 from celery import shared_task
 from orders.models import Orders
-from orders.services import OrdersServices
 from users.models import CustomUser
 import constants
+from orders.services import OrdersServices
 
 
 @shared_task

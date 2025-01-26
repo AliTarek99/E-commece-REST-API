@@ -69,7 +69,8 @@ class ReturnRequest(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     status = models.SmallIntegerField(choices=STATUS_CHOICES, default=constants.RETURN_WAITING_FOR_SHIPPING)
-    
+    paymob_response = models.JSONField(null=True)
+        
     class Meta:
         indexes = [
             models.Index(fields=['order']),
@@ -80,6 +81,7 @@ class ReturnItem(models.Model):
     return_request = models.ForeignKey(ReturnRequest, on_delete=models.CASCADE, related_name='return_items')
     product_variant = models.ForeignKey('products.ProductVariant', on_delete=models.CASCADE)
     quantity = models.SmallIntegerField()
+    price = models.FloatField()
     
     class Meta:
         unique_together = ('return_request', 'product_variant')

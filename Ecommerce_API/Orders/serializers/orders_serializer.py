@@ -7,6 +7,7 @@ from users.models import Address
 import constants
 from orders.models import ReturnItem
 from django.db import models
+from products.models import ProductVariant
 
 
 
@@ -83,7 +84,7 @@ class PaymobCallbackSerializer(serializers.Serializer):
     
 
 class CreateOrderSerializer(serializers.Serializer):
-    email  = serializers.EmailField()
+    email = serializers.EmailField()
     phone_number = serializers.CharField(max_length=20)
     first_name = serializers.CharField(max_length=255)
     last_name = serializers.CharField(max_length=255)
@@ -118,6 +119,7 @@ class ReturnOrderItemSerializer(serializers.ModelSerializer):
         model = OrdersItems
         fields = ['product_variant', 'quantity']
         
+    
     def validate_id(self, value):
         if not value:
             raise serializers.ValidationError("Order item id is required.")
@@ -156,5 +158,6 @@ class ReturnOrderRequestSerializer(serializers.ModelSerializer):
             # Check if the sum of existing return requests and the new request exceeds the quantity in the order
             if existing_return_quantity + quantity > order_item.quantity:
                 raise serializers.ValidationError(f"Total return quantity for product variant {product_variant.id} exceeds the quantity in the order.")
+            item['price'] = order_item.price * quantity
         
         return attrs

@@ -9,6 +9,7 @@ from coupons.services import CouponServices
 from django.db.models import Prefetch
 import constants
 from orders.models import ReturnItem, ReturnRequest
+from orders.services.paymob_services import PaymobServices
 
 
 
@@ -123,7 +124,7 @@ class OrdersServices:
                 request = ReturnRequest.objects.create(order=order, user=user, reason=reason)
                 return_items = []
                 for item in items:
-                    return_items.append(ReturnItem(return_request=request, product_variant=item['product_variant'], quantity=item['quantity']))
+                    return_items.append(ReturnItem(return_request=request, product_variant=item['product_variant'], quantity=item['quantity'], price=item['price']))
                 ReturnItem.objects.bulk_create(return_items, batch_size=500)
         except Exception as e:
             if hasattr(e, 'status'):
@@ -135,8 +136,9 @@ class OrdersServices:
                 raise error
           
     @classmethod
-    def return_items_to_stock(cls, order):
-        order_items = OrdersItems.objects.filter(order=order).select_related('product_variant').all()
+    def return_items_to_stock(cls, order=None, order_items=None):
+        if order_items is None:
+            order_items = OrdersItems.objects.filter(order=order).select_related('product_variant').all()
         variants_to_update = []
         for item in order_items:
             if item.product_variant is None:
@@ -196,7 +198,10 @@ class OrdersServices:
     def return_request_decision(cls, request_id, decision):
         try:
             with transaction.atomic():
-                request = ReturnRequest.objects.filter(id=request_id, status=constants.RETURN_CHECKING_PACKAGE).select_related('order').select_for_update().first()
+                request = ReturnRequest.objects.filter(
+                    id=request_id, 
+                    status=constants.RETURN_CHECKING_PACKAGE
+                ).select_related('order').prefetch_related('return_items').select_for_update().first()
                 if not request:
                     error = Exception('Return request not found')
                     error.status = status.HTTP_404_NOT_FOUND
@@ -207,7 +212,12 @@ class OrdersServices:
                     request.order.status = constants.ORDER_RETURNED
                     request.order.save(update_fields=['status'])
                     cls.return_items_to_stock(request.order)
-                    CouponServices.unuse_coupons(request.user, request.order.order_coupons.all().values_list('coupon__code', flat=True))
+                    amount = 0
+                    
+                    for item in request.return_items.all():
+                        print("here1")
+                        amount += item.price * item.quantity
+                    PaymobServices.refund_payment(amount + request.order.shipping_price * 2, request.order)
                 else:
                     request.status = constants.RETURN_REJECTED
                     request.save(update_fields=['status'])
