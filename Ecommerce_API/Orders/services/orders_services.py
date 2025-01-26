@@ -209,8 +209,6 @@ class OrdersServices:
                 if decision == constants.RETURN_APPROVED:
                     request.status = constants.RETURN_APPROVED
                     request.save(update_fields=['status'])
-                    request.order.status = constants.ORDER_RETURNED
-                    request.order.save(update_fields=['status'])
                     cls.return_items_to_stock(request.order)
                     amount = 0
                     
